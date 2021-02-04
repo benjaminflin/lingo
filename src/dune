@@ -1,0 +1,3 @@
+(executable
+ (name lingo)
+ (libraries lib))
