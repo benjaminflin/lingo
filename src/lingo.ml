@@ -5,10 +5,13 @@ module TestRWS = RWS (struct type t = int end) (UnitMonoid) (struct type t = int
 
 open TestRWS
 let (let*) = bind 
+let (&) m1 m2 = bind m1 (fun _ -> m2)
+
 let rws_test = 
   let* a = ask in
-  let* _ = put (a + 2) in
-  pure (a + 1)
+  put (a + 2) &
+  let* b = get in 
+  pure (b + 1)
 
 let rws_result = let (_,a,_) = run_rws rws_test 0 0 in a
 

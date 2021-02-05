@@ -1,8 +1,8 @@
 open Monad
 
-module StringMap = Map.Make (String)
+module IntMap = Map.Make (String)
 
-type name = string
+type name = int
 
 type mult = One | Unr
 type base_t = IntT | BoolT
@@ -24,10 +24,17 @@ type expr
   | MApp of (expr * mult) 
   | TLam of (name * expr)
   | TApp of (expr * ty)
+  | Construction of (name * expr list)
+  | Let of (name * mult * ty * expr * expr)
+  | Letrec of ((name * mult * ty * expr) list * expr) 
+  | Case of (expr * case_alt list)
   | If of (expr * expr * expr) 
+and case_alt 
+  = Constructor of (name list * expr)
+  | Wildcard of expr
 
-type env = ty StringMap.t
-type usage = mult StringMap.t 
+type env = ty IntMap.t
+type usage = mult IntMap.t 
 type constr = (mult * mult)
 module Check = RWS (struct type t = env end) (UnitMonoid) (struct type t = usage * constr list end)
 
