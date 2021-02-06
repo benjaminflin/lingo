@@ -68,7 +68,12 @@ module RWS = functor (R : T) (W : MONOID) (S : T) -> struct
     end)
     let ask = RWS (fun r s -> (s, r, W.empty))
     let get = RWS (fun _ s -> (s, s, W.empty))
+
     let put x = RWS (fun _ _ -> (x, (), W.empty))
+
+    let modify f = let (let*) = bind in 
+        let* x = get in
+        put (f x)
     let local f (RWS m) = RWS (fun r s -> m (f r) s)
     let tell w = RWS (fun _ s -> (s, (), w))
     let run_rws (RWS m) = m

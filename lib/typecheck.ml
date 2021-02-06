@@ -12,12 +12,12 @@ type mult
   | Times of (mult * mult)
 
 type base_t = IntT | BoolT
-type ty 
+type ty
   = BaseT of base_t 
   | TVar of name
   | LamT of (mult * ty * ty)
   | Forall of (name * ty)
-  | ForallM of (name * mult)
+  | ForallM of (name * ty)
 
 type base_e 
   = IntE of int
@@ -42,6 +42,7 @@ and case_alt
   | Wildcard of expr
 
 exception NotImplemented 
+exception NotAMLam of ty
 exception NotInScope of name
 exception NotAFunction of expr
 exception Mismatch of (ty * ty)
@@ -66,8 +67,36 @@ let lookup_var x =
     | Some ty -> pure (ty, M.singleton x One)
     | _ -> raise (NotInScope x)
 
-let add = M.union (fun _ _ _ -> Some Unr)
-let mult m = M.map (fun a -> Times (m, a))
+let simp = function
+  | Plus _          -> Unr
+  | Times (a, One)  -> a
+  | Times (One, a)  -> a
+  | Times (Unr, _)  -> Unr
+  | Times (_, Unr)  -> Unr
+  | a               -> a
+let add a b = 
+  let f _ a b = Some (Plus (a, b)) in
+  M.map (simp) (M.union f a b)
+let mult m a = M.map (simp) (M.map (fun a -> Times (m, a)) a)
+
+let rec subst_mult_mult subst mult = match (subst, mult) with
+  | (MVar a, b), (MVar c) -> if a == c then b else (MVar c)
+  | x, Times (a, b)       -> Times ((subst_mult_mult x a), (subst_mult_mult x b))
+  | x, Plus (a, b)        -> Plus ((subst_mult_mult x a), (subst_mult_mult x b))
+  | _, m                  -> m 
+let rec subst_mult_ty subst ty = match (subst, ty) with
+  | x, LamT (m, t, t') -> LamT ((subst_mult_mult x m), (subst_mult_ty x t), (subst_mult_ty x t'))
+  | x, ForallM (p, t)  -> ForallM (p, subst_mult_ty x t)
+  | x, Forall (p, t)   -> Forall (p, subst_mult_ty x t)
+  | _, t                -> t
+
+let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
+let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
+
+let reduce_constraints = raise NotImplemented 
+(* let reduce_constraints = 
+  let* a = get & *)
+
 
 let rec check expr = 
   match expr with
@@ -97,6 +126,18 @@ let rec check expr =
         else
           raise (Mismatch (t2, a))
       | _ -> raise (NotAFunction e1))
+  | MLam (x, e) -> 
+    (* Maybe TODO: subtract any existing p from env *)
+    let* (t, u) = check e in
+    pure (ForallM (x, t), u)
+  | MApp (e, p) -> 
+    let* (t', u) = check e in
+    (match t' with 
+      | Forall(q, t) ->
+          modify (subst_mult_constr_list (MVar q, p)) &
+          reduce_constraints &
+          pure (subst_mult_ty (MVar q, p) t, u)
+      | _ -> raise (NotAMLam t')
+    )
+  | If (b, e1, e2) -> raise NotImplemented
   | _ -> raise NotImplemented
-
-    
