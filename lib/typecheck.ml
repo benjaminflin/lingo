@@ -41,6 +41,7 @@ and case_alt
   = Constructor of (name list * expr)
   | Wildcard of expr
 
+exception NotImplemented 
 exception NotInScope of name
 exception NotAFunction of expr
 exception Mismatch of (ty * ty)
@@ -89,12 +90,13 @@ let rec check expr =
   | App (e1, e2) -> 
     let* (t1, u1) = check e1 in
     let* (t2, u2) = check e2 in
-    match t1 with
+    (match t1 with
       | LamT (p, a, b) -> 
         if a == t2 then 
           pure (b, add u1 (mult p u2))
         else
           raise (Mismatch (t2, a))
-      | _ -> raise (NotAFunction e1)
+      | _ -> raise (NotAFunction e1))
+  | _ -> raise NotImplemented
 
     

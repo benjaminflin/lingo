@@ -4,4 +4,5 @@
 
 (rule
  (alias install)
- (action (run opam install ../ --deps-only -y)))
+ (action
+  (run opam install ../ --deps-only -y)))

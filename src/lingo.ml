@@ -11,7 +11,9 @@ let rws_test =
   let* a = ask in
   put (a + 2) &
   let* b = get in 
-  pure (b + 1)
+  put (b * 3) & 
+  let* c = get in
+  pure (c + 1)
 
 let rws_result = let (_,a,_) = run_rws rws_test 0 0 in a
 

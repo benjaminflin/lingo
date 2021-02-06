@@ -1,3 +1,2 @@
 (library
- (name lib)
- (libraries monads))
+ (name lib))
