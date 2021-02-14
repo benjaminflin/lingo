@@ -1,0 +1,14 @@
+(* example 1 *)
+let compose = fun f -> fun g -> fun x -> f (g x);;
+
+(* example 2 *)
+let f a b =
+    let g x y = x * y + b in 
+    g a (10) 
+in f 20 10;;
+
+(* example 3 *)
+let f a b =
+    let g x y = x * y + b in 
+    g a (10)
+in f 20;;
