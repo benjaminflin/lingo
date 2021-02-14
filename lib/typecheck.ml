@@ -22,7 +22,6 @@ type ty
 type base_e 
   = IntE of int
   | BoolE of bool
-
 type expr  
   = BaseE of base_e
   | Var of name
@@ -47,8 +46,8 @@ exception NotInScope of name
 exception NotAFunction of expr
 exception Mismatch of (ty * ty)
 
-type env = ty StringMap.t
-type usage = mult StringMap.t 
+type env    = ty StringMap.t
+type usage  = mult StringMap.t 
 type constr = LE of (mult * mult)
 
 module Check = RWS (struct type t = env end) (UnitMonoid) (struct type t = constr list end)
@@ -139,5 +138,5 @@ let rec check expr =
           pure (subst_mult_ty (MVar q, p) t, u)
       | _ -> raise (NotAMLam t')
     )
-  | If (b, e1, e2) -> raise NotImplemented
+  | If (_, _, _) -> raise NotImplemented
   | _ -> raise NotImplemented

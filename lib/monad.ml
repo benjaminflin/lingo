@@ -67,6 +67,7 @@ module RWS = functor (R : T) (W : MONOID) (S : T) -> struct
         let pure x = RWS (fun _ s -> (s, x, W.empty))  
     end)
     let ask = RWS (fun r s -> (s, r, W.empty))
+    let asks f = RWS (fun r s -> (s, f r, W.empty))
     let get = RWS (fun _ s -> (s, s, W.empty))
 
     let put x = RWS (fun _ _ -> (x, (), W.empty))
