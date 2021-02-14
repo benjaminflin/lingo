@@ -1,0 +1,6 @@
+opam-version: "2.0"
+name: "lingo"
+version: "0.2"
+dev-repo: ""
+depends: [ "ocaml" "ocamlfind" ]
+build: ["dune" "build" "-p" name "-j" jobs]
