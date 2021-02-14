@@ -1,3 +1,11 @@
+# Container Commands
+In order to run the docker container, make sure you are in the root directory of the Dockerfile
+```
+docker build --tag plt .
+docker run -it -v `pwd`:/home/lingo -w=/home/lingo plt
+```
+This should take a while to build, but it should allow better llvm support and building across platforms
+
 # Build Commands
 
 ```
