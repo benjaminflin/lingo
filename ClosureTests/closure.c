@@ -1,12 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum FuncRetTag
-{
-    INT,
-    CLOSURE
-};
-
 typedef struct
 {
     void **env;
@@ -15,7 +9,6 @@ typedef struct
 
 typedef struct
 {
-    enum FuncRetTag tag;
     union
     {
         Closure closure;
@@ -34,7 +27,6 @@ FuncRet id(void **env, void *x)
 {
     int y = *(int *)x;
     return (FuncRet){
-        .tag = INT,
         .ret_val.int_ret = y};
 }
 
@@ -43,7 +35,6 @@ FuncRet succ(void **env, void *x)
 {
     int y = *(int *)x;
     return (FuncRet){
-        .tag = INT,
         .ret_val.int_ret = y + 1,
     };
 }
@@ -58,7 +49,6 @@ FuncRet compose(void **env, void *f)
     void **a = malloc(sizeof(void *));
     a[0] = f;
     return (FuncRet){
-        .tag = CLOSURE,
         .ret_val = (Closure){
             .env = a,
             .code_ptr = (void *)compose2,
@@ -73,7 +63,6 @@ FuncRet compose2(void **env, void *g)
     a[1] = g;
 
     return (FuncRet){
-        .tag = CLOSURE,
         .ret_val = (Closure){
             .env = a,
             .code_ptr = (void *)compose3,
@@ -108,6 +97,6 @@ int main()
     void *x = &i;
 
     int res = apply(apply(apply(c, f).ret_val.closure, g).ret_val.closure, x).ret_val.int_ret;
-    printf("all of this shit just for a %d\n", res);
+    printf("all of this stuff just for a %d\n", res);
     return 0;
 };
