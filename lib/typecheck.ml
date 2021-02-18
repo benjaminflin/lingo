@@ -22,6 +22,7 @@ type ty
 type base_e 
   = IntE of int
   | BoolE of bool
+  | CharE of char
 type expr  
   = BaseE of base_e
   | Var of name

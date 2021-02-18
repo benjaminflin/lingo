@@ -27,7 +27,8 @@ FuncRet id(void **env, void *x)
 {
     int y = *(int *)x;
     return (FuncRet){
-        .ret_val.int_ret = y};
+        .ret_val.int_ret = y,
+    };
 }
 
 // g
@@ -96,7 +97,16 @@ int main()
     int i = 5;
     void *x = &i;
 
-    int res = apply(apply(apply(c, f).ret_val.closure, g).ret_val.closure, x).ret_val.int_ret;
+    int res =
+        apply(
+            apply(
+                apply(
+                    c, f)
+                    .ret_val.closure,
+                g)
+                .ret_val.closure,
+            x)
+            .ret_val.int_ret;
     printf("all of this stuff just for a %d\n", res);
     return 0;
 };
