@@ -1,5 +1,4 @@
 open Monad
-
 module StringMap = Map.Make (String)
 
 type name = string
@@ -22,6 +21,7 @@ type ty
 type base_e 
   = IntE of int
   | BoolE of bool
+  | CharE of char
 type expr  
   = BaseE of base_e
   | Var of name
@@ -92,7 +92,8 @@ let rec subst_mult_ty subst ty = match (subst, ty) with
 let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
 let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
 
-let reduce_constraints = raise NotImplemented 
+(* let reduce_constraints = raise NotImplemented  *)
+let reduce_constraints = ()
 (* let reduce_constraints = 
   let* a = get & *)
 
@@ -134,9 +135,16 @@ let rec check expr =
     (match t' with 
       | Forall(q, t) ->
           modify (subst_mult_constr_list (MVar q, p)) &
-          reduce_constraints &
+          (* reduce_constraints & *)
           pure (subst_mult_ty (MVar q, p) t, u)
       | _ -> raise (NotAMLam t')
     )
   | If (_, _, _) -> raise NotImplemented
   | _ -> raise NotImplemented
+
+(* 
+let _ =
+  let lexbuf = Lexing.from_channel stdin in
+  let expr = Parser.expr Scanner.tokenize lexbuf in
+  let result = eval expr in
+  print_endline (string_of_int result) *)
