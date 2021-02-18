@@ -1,0 +1,7 @@
+(ocamllex scanner)
+
+(ocamlyacc parser)
+
+(library
+ (name parse)
+ (modules parser scanner ast))

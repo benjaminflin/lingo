@@ -17,6 +17,6 @@ let rws_test =
 
 let rws_result = let (_,a,_) = run_rws rws_test 0 0 in a
 
-let () = 
-  print_endline (string_of_int rws_result)
+let () =  
+  print_endline (string_of_int rws_result);
 
