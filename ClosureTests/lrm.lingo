@@ -1,0 +1,94 @@
+(* Algebraic Data Types *)
+data PartyAnimal {a} |p| where
+    Cow     : a -p> PartyAnimal,
+    Giraffe : a -p> PartyAnimal,
+    Hyenas  : a ->  PartyAnimal,
+    Donkies : a ->  PartyAnimal,
+
+data Maybe {a} |p| where
+    Just : a -p> Maybe
+    Nothing : Maybe
+
+(* Top Level Bindings *)
+main : () = print "foo"
+
+(* Let expressions *)
+let bar : Int = 10 in bar + 10
+let bar Args : Type = e1 in e2
+let id {a} |p| x : a -p> a = x in e
+
+(* compose {Int Int Int} |One One| *)
+compose {a b c} |p q| f g x : (b -q> c) -> (a -p> b) -> a -p*q> c = f g x 
+
+(* Lambdas *)
+(\x -> x + 1)
+
+(* Type Lambdas *)
+(/t -> id {t}) {Int}
+
+(* Multiplicity Lambdas *)
+(|p -> (/t -> id {t} |p|))
+
+(* Multiplicities *)
+Unr 
+One
+<Mult> * <Mult>
+
+(* 🅱️ools *)
+true
+false 
+if e1 then e2 else e3
+
+(* Case Expressions *)
+    
+case e of
+  C1 x11,...,x1n -> e1
+  ...
+  Cm xm1,...,xmn -> em
+  _ -> e'
+
+case {a, b, c} |p| x of
+    Just (a, b, c, d) -> [a, b, c, d]
+    (e, f, g, h) -> [e, f]
+    Nothing -> Nothing
+C1 ... Cm are constructors
+xij are variables
+
+(* Character/🅱️yte *)
+'a'
+
+(* Ints *)
+[0-9]+
+(345457623)
+
+(* Pointers *)
+(* Opaque type, can only be accessed using malloc, free, getByte, setByte *)
+
+(* Operators *)
+(+)
+(-)
+(/)
+(*)
+
+(* ️Binary Operators *)
+!= 
+== 
+<=
+>=
+<
+>
+
+(* Variable *)
+(* lowercase ascii + letters + ' *)
+
+(* Casting *)
+toInt {a} |p| x : (a -p> Int) = <internal cast> x 
+toString {a} |p| x : (a -p> [Char]) = <internal cast> x 
+
+(* Comments *)
+(*
+    This is a comment 
+    let f = g x
+*)
+
+
