@@ -9,26 +9,32 @@ let uchar = ['A'-'Z']
 rule tokenize = parse
   [' ' '\t' '\r' '\n']                  { tokenize lexbuf }
 | "(*"                                  { comment lexbuf }
+| "!="                                  { NEQ }
+| "<="                                  { LEQ }
+| '<'                                   { LT }
+| ">="                                  { GEQ }
+| '>'                                   { GT }
+| "=="                                  { EQ }
+| '='                                   { ASSIGN }
+| "||"                                  { OR }
+| "&&"                                  { AND }
+| "!"                                   { NOT }
 | '|'                                   { VBAR }
+| "()"                                  { UNIT }
 | ':'                                   { COLON }
-| ','                                   { COMMA }
+| ';'                                   { SEMICOLON }
 | '_'                                   { WILDCARD }
 | '\\'                                  { BACKSLASH }
 | '('                                   { LPAREN }
 | ')'                                   { RPAREN }
+| '@'                                   { FORALL }
+| '#'                                   { FORALLM }
 | '{'                                   { LBRACE }
 | '}'                                   { RBRACE }
 | '+'                                   { PLUS }
 | '-'                                   { DASH }
 | '*'                                   { STAR }
 | '/'                                   { SLASH }
-| '='                                   { ASSIGN }
-| "=="                                  { EQ }
-| "!="                                  { NEQ }
-| '<'                                   { LT }
-| "<="                                  { LEQ }
-| '>'                                   { GT }
-| ">="                                  { GEQ }
 | "if"                                  { IF }
 | "then"                                { THEN }
 | "else"                                { ELSE }
@@ -47,6 +53,7 @@ rule tokenize = parse
                                         { LID(lxm) }
 | uchar+ (digit | lchar | uchar)* ('\'')? as lxm    
                                         { UID(lxm) }
+| '\'' ((lchar | uchar) as lxm) '\''    { CHAR(lxm) }
 | eof                                   { EOF }
 | _ as char { raise (Failure("illegal character " ^ Char.escaped char ))}
 
