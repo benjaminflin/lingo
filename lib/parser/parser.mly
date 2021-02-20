@@ -30,11 +30,15 @@ defs:
 | def { [$1] }
 | def defs { $1::$2 }
 
-
-// | Let of (name * param list * mult * ty * expr * expr)
 def:
-| LET LID COLON ty ASSIGN expr                      { Def($2, $4, $6) } 
-| datadef                       { DataDef($1) }
+| letstmt                                           { $1 }
+| datadef                                           { DataDef($1) }
+
+letstmt:
+| LET LID COLON ty ASSIGN expr SEMICOLON                { Def($2, [], $4, $6) } 
+| LET LID COLON mult ty ASSIGN expr SEMICOLON           { Def($2, [], $5, $7) }
+| LET LID params COLON mult ty ASSIGN expr SEMICOLON    { Def($2, $3, $6, $8) }
+| LET LID params COLON ty ASSIGN expr SEMICOLON         { Def($2, $3, $5, $7) }
 
 datadef:
 | DATA UID params WHERE conslist { DataType($2, $3, $5) }
@@ -50,40 +54,41 @@ expr:
 | BACKSLASH LPAREN LID COLON ty RPAREN arrow expr   { Lam($3, $7, $5, $8)}
 | SLASH LID DASH GT expr                            { TLam($2, $5) }
 | VBAR LID DASH GT expr                             { MLam($2, $5) }
-| LET LID COLON mult ty ASSIGN expr IN expr         { Let($2, [], $4, $5, $7, $9) }
-| LET LID params COLON mult ty ASSIGN expr IN expr  { Let($2, $3, $5, $6, $8, $10) }
-| LET LID params COLON ty ASSIGN expr IN expr       { Let($2, $3, Unr, $5, $7, $9) }
-| LET LID COLON ty ASSIGN expr IN expr              { Let($2, [], Unr, $4, $6, $8) }
 | IF expr THEN expr ELSE expr                       { If($2, $4, $6) } 
 | CASE expr OF casealts                             { Case($2, $4) }
 | NOT expr                                          { Unop(Not, $2) }
 | DASH expr %prec NOT                               { Unop(Neg, $2) }
 | binop                                             { $1 }
 | appterm                                           { $1 }
+| letexpr                                           { $1 }
 
- 
+letexpr:
+| LET LID COLON mult ty ASSIGN expr IN expr         { Let($2, [], $4, $5, $7, $9) }
+| LET LID params COLON mult ty ASSIGN expr IN expr  { Let($2, $3, $5, $6, $8, $10) }
+| LET LID params COLON ty ASSIGN expr IN expr       { Let($2, $3, Unr, $5, $7, $9) }
+| LET LID COLON ty ASSIGN expr IN expr              { Let($2, [], Unr, $4, $6, $8) }
+
 
 casealts:
 | casealt           { [$1] }
 | casealt casealts  { $1::$2 }
 
 casealt:
-| UID caseparams DASH GT expr SEMICOLON  { Destructor($1, $2, $5) }
+| UID lids DASH GT expr SEMICOLON  { Destructor($1, $2, $5) }
 | WILDCARD DASH GT expr SEMICOLON        { Wildcard($4) }
 
-caseparams:
+lids:
 | LID               { [$1] }
-| LID caseparams    { $1::$2 }
-
+| LID lids          { $1::$2 }
 
 params:
 | param                 { [$1] }
 | param params          { $1::$2 }
 
 param:
-| LBRACE LID RBRACE     { TParam($2) }
-| VBAR LID VBAR         { MParam($2) }
-| LID                   { Param($1) }
+| LBRACE lids RBRACE     { TParam($2) }
+| VBAR lids VBAR         { MParam($2) }
+| LID                    { Param([$1]) }
 
 appterm:
 | atomicterm                { $1 }

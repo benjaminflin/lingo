@@ -22,11 +22,9 @@ type binop
 type unop = Not | Neg
 
 type param 
-  = MParam of name
-  | TParam of name
-  | Param of name
-
-
+  = MParam of name list
+  | TParam of name list
+  | Param of name list
 
 type expr
   = Var of name
@@ -55,10 +53,8 @@ type consdef
 type datadef
   = DataType of name * param list * consdef list
 
-
 type def 
-  = Def of name * ty * expr
+  = Def of name * param list * ty * expr
   | DataDef of datadef
-
 
 type defs = def list
