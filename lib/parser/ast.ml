@@ -39,13 +39,14 @@ type expr
   | TLam of (name * expr)
   | Unop of (unop * expr)
   | TApp of (expr * ty)
+  | Construction of (name)
   | If of (expr * expr * expr) 
   | Case of (expr * casealt list)
   | Lit of int
   | Char of char
   | Bool of bool
 and casealt 
-  = Constructor of (name * name list * expr)
+  = Destructor of (name * name list * expr)
   | Wildcard of expr
 
 type consdef

@@ -30,15 +30,17 @@ defs:
 | def { [$1] }
 | def defs { $1::$2 }
 
+
+// | Let of (name * param list * mult * ty * expr * expr)
 def:
-| LET LID COLON ty ASSIGN expr { Def($2, $4, $6) } 
-| datadef { DataDef($1) }
+| LET LID COLON ty ASSIGN expr                      { Def($2, $4, $6) } 
+| datadef                       { DataDef($1) }
 
 datadef:
 | DATA UID params WHERE conslist { DataType($2, $3, $5) }
 
 conslist:
-| cons { [$1] }
+| cons          { [$1] }
 | cons conslist { $1::$2 }
 
 cons:
@@ -59,27 +61,29 @@ expr:
 | binop                                             { $1 }
 | appterm                                           { $1 }
 
+ 
+
 casealts:
-| casealt { [$1] }
-| casealt casealts { $1::$2 }
+| casealt           { [$1] }
+| casealt casealts  { $1::$2 }
 
 casealt:
-| UID caseparams DASH GT expr SEMICOLON  { Constructor($1, $2, $5) }
+| UID caseparams DASH GT expr SEMICOLON  { Destructor($1, $2, $5) }
 | WILDCARD DASH GT expr SEMICOLON        { Wildcard($4) }
 
 caseparams:
-| LID { [$1] }
-| LID caseparams { $1::$2 }
+| LID               { [$1] }
+| LID caseparams    { $1::$2 }
 
 
 params:
-| param { [$1] }
-| param params { $1::$2 }
+| param                 { [$1] }
+| param params          { $1::$2 }
 
 param:
-| LBRACE LID RBRACE { TParam($2) }
-| VBAR LID VBAR { MParam($2) }
-| LID { Param($1) }
+| LBRACE LID RBRACE     { TParam($2) }
+| VBAR LID VBAR         { MParam($2) }
+| LID                   { Param($1) }
 
 appterm:
 | atomicterm                { $1 }
@@ -90,6 +94,7 @@ appterm:
 atomicterm:
 | LPAREN expr RPAREN    { $2 }
 | LID                   { Var($1) }
+| UID                   { Construction($1) }
 | LITERAL               { Lit($1) }
 | BOOL                  { Bool($1) }
 | CHAR                  { Char($1) }
@@ -106,9 +111,9 @@ mult:
 
 ty:
 | LPAREN ty RPAREN  { $2 }
-| UNIT { TName "Unit" }
-| FORALL LID ty { Forall($2, $3) }
-| FORALLM LID ty { ForallM($2, $3) }
+| UNIT              { TName "Unit" }
+| FORALL LID ty     { Forall($2, $3) }
+| FORALLM LID ty    { ForallM($2, $3) }
 | atomicty arrow ty { LamT($2, $1, $3) }
 | LID               { TVar $1 }
 | UID               { TName $1 }
@@ -116,19 +121,20 @@ ty:
 atomicty:
 | LID               { TVar $1 }
 | UID               { TName $1 }
+| LPAREN ty RPAREN  { $2 }
 
 binop:
 | bterm PLUS bterm  { Op($1, Plus, $3) }
 | bterm DASH bterm  { Op($1, Minus, $3) }
 | bterm SLASH bterm { Op($1, Divide, $3) }
 | bterm STAR bterm  { Op($1, Times, $3) }
-| bterm OR bterm  { Op($1, Times, $3) }
-| bterm AND bterm  { Op($1, Times, $3) }
-| bterm EQ bterm  { Op($1, Times, $3) }
-| bterm NEQ bterm  { Op($1, Times, $3) }
-| bterm LEQ bterm  { Op($1, Times, $3) }
-| bterm GT bterm  { Op($1, Times, $3) }
-| bterm GEQ bterm  { Op($1, Times, $3) }
+| bterm OR bterm    { Op($1, Or, $3) }
+| bterm AND bterm   { Op($1, And, $3) }
+| bterm EQ bterm    { Op($1, Eq, $3) }
+| bterm NEQ bterm   { Op($1, Ne, $3) }
+| bterm LEQ bterm   { Op($1, Le, $3) }
+| bterm GT bterm    { Op($1, Gt, $3) }
+| bterm GEQ bterm   { Op($1, Ge, $3) }
 
 bterm:
 | appterm           { $1 }
