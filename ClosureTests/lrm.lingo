@@ -1,13 +1,13 @@
 (* Algebraic Data Types *)
 data PartyAnimal {a} |p| where
-    Cow     : a -p> PartyAnimal,
-    Giraffe : a -p> PartyAnimal,
-    Hyenas  : a ->  PartyAnimal,
-    Donkies : a ->  PartyAnimal
+    Cow     : a -p> PartyAnimal;
+    Giraffe : a -p> PartyAnimal;
+    Hyenas  : a ->  PartyAnimal;
+    Donkies : a ->  PartyAnimal;
 
 data Maybe {a} |p| where
-    Just : a -p> Maybe,
-    Nothing : Maybe
+    Just : a -p> Maybe;
+    Nothing : Maybe;
 
 (* Top Level Bindings *)
 let main : () = print "foo"
@@ -19,8 +19,7 @@ let bar Args : Type = e1 in e2
 let id {a} |p| x : a -p> a = x in e
 
 (* compose {Int Int Int} |One One| *)
-compose {a b c} |p q| f g x : #a @a (b -q> c) -> (a -p> b) -> a -p*q> c = f g x 
-compose {a} {b} {c} |p| |q| f g x 
+let compose {a b c} |p q| f g x : #a @a (b -q> c) -> (a -p> b) -> a -p*q> c = f g x;
 
 foo : (@a a -> a) -> (Int, Bool)
 foo f x = (f {Int} x, f {Bool}  true)

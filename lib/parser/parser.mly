@@ -6,26 +6,28 @@ open Ast
 %token PLUS DASH STAR SLASH ASSIGN EQ NEQ LT LEQ GT GEQ OR AND NOT
 %token IF THEN ELSE LET IN OF DATA CASE WHERE FORALL FORALLM
 
-%token <int> LITERAL
-%token <bool> BOOL MULT
+%token <int>    LITERAL
+%token <bool>   BOOL MULT
 %token <string> UID LID
-%token <char> CHAR
+%token <char>   CHAR
 
-%token EOF
+%token  EOF
 
-%left OR
-%left AND
-%left EQ NEQ
-%left LT GT LEQ GEQ
-%left PLUS DASH
-%left STAR SLASH
-%right NOT
+%left   OR
+%left   AND
+%left   EQ NEQ
+%left   LT GT LEQ GEQ
+%left   PLUS DASH
+%left   STAR SLASH
+%right  NOT
 
-%start defs
-%type <Ast.defs> defs
+%start  defs
+%type   <Ast.defs> defs
 
 %%
 
+
+// Top Level Bindings and Data Declerations
 defs:
 | def { [$1] }
 | def defs { $1::$2 }
@@ -50,6 +52,8 @@ conslist:
 cons:
 | UID COLON ty SEMICOLON { Cons($1, $3) }
 
+// Expressions and Let Expressions
+
 expr:
 | BACKSLASH LPAREN LID COLON ty RPAREN arrow expr   { Lam($3, $7, $5, $8)}
 | SLASH LID DASH GT expr                            { TLam($2, $5) }
@@ -68,6 +72,7 @@ letexpr:
 | LET LID params COLON ty ASSIGN expr IN expr       { Let($2, $3, Unr, $5, $7, $9) }
 | LET LID COLON ty ASSIGN expr IN expr              { Let($2, [], Unr, $4, $6, $8) }
 
+// Case Statements
 
 casealts:
 | casealt           { [$1] }
@@ -75,7 +80,9 @@ casealts:
 
 casealt:
 | UID lids DASH GT expr SEMICOLON  { Destructor($1, $2, $5) }
-| WILDCARD DASH GT expr SEMICOLON        { Wildcard($4) }
+| WILDCARD DASH GT expr SEMICOLON  { Wildcard($4) }
+
+// Lowercase ID list 
 
 lids:
 | LID               { [$1] }
@@ -93,8 +100,8 @@ param:
 appterm:
 | atomicterm                { $1 }
 | appterm atomicterm        { App($1, $2) }
-| appterm VBAR mult VBAR    { MApp($1, $3) }
-| appterm LBRACE ty RBRACE  { TApp($1, $3) }
+| appterm VBAR multlist VBAR    { MApp($1, $3) }
+| appterm LBRACE tylist RBRACE  { TApp($1, $3) }
 
 atomicterm:
 | LPAREN expr RPAREN    { $2 }
@@ -109,10 +116,22 @@ arrow:
 | DASH STAR         { One } 
 | DASH mult GT      { $2 } 
 
+// Multiplicites
+
+multlist:
+| mult { [$1] }
+| mult multlist { $1::$2 }
+
 mult:
 | LID               { MVar($1) }
 | MULT              { if ($1) then Unr else One }
 | mult STAR mult    { Times($1, $3) }
+
+// Types
+tylist:
+| ty { [$1] }
+| ty tylist { $1::$2 }
+
 
 ty:
 | LPAREN ty RPAREN  { $2 }
@@ -123,10 +142,14 @@ ty:
 | LID               { TVar $1 }
 | UID               { TName $1 }
 
+// Atomic IDs
+
 atomicty:
 | LID               { TVar $1 }
 | UID               { TName $1 }
 | LPAREN ty RPAREN  { $2 }
+
+// Binary Operations
 
 binop:
 | bterm PLUS bterm  { Op($1, Plus, $3) }
@@ -144,3 +167,7 @@ binop:
 bterm:
 | appterm           { $1 }
 | binop             { $1 }
+
+// let compose {a b c} |p q| f g x : @a @b @c #p #q (b -p> c) -> (a -q> b) -> a -p*q> c = f (g x);
+// let compose : Foo = compose {Int Int Int} |One One|
+// let src = "let x : Bool = 1 == (\(x : Bool) -> true) 10;"
