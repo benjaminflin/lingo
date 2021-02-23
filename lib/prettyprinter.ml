@@ -38,6 +38,15 @@ let rec pretty_print_ty = function
 | LamT (m, t1, t2) -> "(" ^ pretty_print_ty t1 ^ " " ^ pretty_print_arrow m ^ " " ^ pretty_print_ty t2 ^ ")"
 | ForallM (name, t) -> "#" ^ name ^ " " ^ pretty_print_ty t
 | Forall (name, t) -> "@" ^ name ^ " " ^ pretty_print_ty t
+| Inst  (t, tlist) -> 
+  pretty_print_ty t 
+  ^ " {" 
+  ^ concat_with_space (List.map (pretty_print_ty) tlist) ^ "} "
+| InstM (t, mlist) -> 
+  pretty_print_ty t 
+  ^ " |"
+  ^ concat_with_space (List.map (pretty_print_mult) mlist) 
+  ^ "| "
 
 let pretty_print_consdef (Cons (name, ty)) = name ^ " : " ^ pretty_print_ty ty ^ ";"
 
@@ -112,7 +121,7 @@ let rec pretty_print_expr = function
     ^ pretty_print_expr e2 ^ " else "  
     ^ pretty_print_expr e3
 | Case(e, casealt) ->
-    "case " ^ pretty_print_expr e ^ " of "
+    "case " ^ pretty_print_expr e ^ " of\n"
     ^ concat_with_space (List.map (pretty_print_case) casealt)
 | Lit(i) -> string_of_int i 
 | Char(c) -> String.make 1 c 

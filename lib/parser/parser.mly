@@ -79,8 +79,9 @@ casealts:
 | casealt casealts  { $1::$2 }
 
 casealt:
-| UID lids DASH GT expr SEMICOLON  { Destructor($1, $2, $5) }
-| WILDCARD DASH GT expr SEMICOLON  { Wildcard($4) }
+| UID lids DASH GT expr SEMICOLON   { Destructor($1, $2, $5) }
+| UID DASH GT expr SEMICOLON        { Destructor($1, [], $4) }
+| WILDCARD DASH GT expr SEMICOLON   { Wildcard($4) }
 
 // Lowercase ID list 
 
@@ -134,35 +135,38 @@ tylist:
 
 
 ty:
-| LPAREN ty RPAREN  { $2 }
-| UNIT              { TName "Unit" }
-| FORALL LID ty     { Forall($2, $3) }
-| FORALLM LID ty    { ForallM($2, $3) }
-| atomicty arrow ty { LamT($2, $1, $3) }
-| LID               { TVar $1 }
-| UID               { TName $1 }
+| FORALL LID ty             { Forall($2, $3)    }
+| FORALLM LID ty            { ForallM($2, $3)   }
+| appty arrow ty            { LamT($2, $1, $3)  }
+| appty                     { $1                }
+
+appty:
+| appty LBRACE tylist RBRACE   { Inst($1, $3)      }
+| appty VBAR multlist VBAR     { InstM($1, $3)     }
+| atomicty { $1 }
 
 // Atomic IDs
 
 atomicty:
-| LID               { TVar $1 }
-| UID               { TName $1 }
-| LPAREN ty RPAREN  { $2 }
+| UNIT              { TName "Unit"      }
+| LID               { TVar $1           }
+| UID               { TName $1          }
+| LPAREN ty RPAREN  { $2                }
 
 // Binary Operations
 
 binop:
-| bterm PLUS bterm  { Op($1, Plus, $3) }
+| bterm PLUS bterm  { Op($1, Plus, $3)  }
 | bterm DASH bterm  { Op($1, Minus, $3) }
-| bterm SLASH bterm { Op($1, Divide, $3) }
+| bterm SLASH bterm { Op($1, Divide, $3)}
 | bterm STAR bterm  { Op($1, Times, $3) }
-| bterm OR bterm    { Op($1, Or, $3) }
-| bterm AND bterm   { Op($1, And, $3) }
-| bterm EQ bterm    { Op($1, Eq, $3) }
-| bterm NEQ bterm   { Op($1, Ne, $3) }
-| bterm LEQ bterm   { Op($1, Le, $3) }
-| bterm GT bterm    { Op($1, Gt, $3) }
-| bterm GEQ bterm   { Op($1, Ge, $3) }
+| bterm OR bterm    { Op($1, Or, $3)    }
+| bterm AND bterm   { Op($1, And, $3)   }
+| bterm EQ bterm    { Op($1, Eq, $3)    }
+| bterm NEQ bterm   { Op($1, Ne, $3)    }
+| bterm LEQ bterm   { Op($1, Le, $3)    }
+| bterm GT bterm    { Op($1, Gt, $3)    }
+| bterm GEQ bterm   { Op($1, Ge, $3)    }
 
 bterm:
 | appterm           { $1 }

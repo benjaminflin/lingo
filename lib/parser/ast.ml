@@ -1,4 +1,3 @@
-
 type mult 
   = One 
   | Unr 
@@ -7,14 +6,14 @@ type mult
 
 type name = string
 
-
 type ty
   = TVar of name
   | TName of name
   | LamT of (mult * ty * ty)
+  | Inst of (ty * ty list)
+  | InstM of (ty * mult list)
   | Forall of (name * ty)
   | ForallM of (name * ty)
-
 
 type binop 
   = Lt | Gt | Le | Ge | Ne | Eq | Plus | Minus | Divide | Times | And | Or

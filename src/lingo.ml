@@ -17,18 +17,17 @@ let src5 = "let x : Foo = (|p -> (/t -> id {t} |p|));"
 let src6 = "let x : Int = -6;"
 
 let src7 = "
-  let x : Int = case (Just 4) of
-    Just a -> a;
-    Nothing a -> 0;
-  ;
-"
+  let x : Maybe {Maybe {Int}} |One| = case (Just (Just 4)) of
+    Just a -> Just a;
+    Nothing -> Just 0;
+  ;"
 
-(* Todo: Add Maybe Int type and also add Parsing without unwrapping Nothing  *)
+let src8 = "let x = \'\n\'"
 
 let _ = 
   print_endline (
     Prettyprinter.pretty_print (
-      let lexbuf = Lexing.from_string src7
+      let lexbuf = Lexing.from_string src8
       in Parse.Parser.defs Parse.Scanner.tokenize lexbuf
   ))
 

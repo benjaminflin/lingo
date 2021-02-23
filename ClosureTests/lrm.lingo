@@ -5,9 +5,14 @@ data PartyAnimal {a} |p| where
     Hyenas  : a ->  PartyAnimal;
     Donkies : a ->  PartyAnimal;
 
-data Maybe {a} |p| where
+data Maybe2 {a} |p q| : Type -> Mult -> Mult -> Type where
     Just : a -p> Maybe;
+    Just2 : a -q> Maybe;
     Nothing : Maybe;
+
+let foo : Maybe2 {Maybe {Int} |One|} |One| = ...
+let foo : #a Maybe2 (Maybe2 Int a) One
+
 
 (* Top Level Bindings *)
 let main : () = print "foo"
@@ -20,9 +25,12 @@ let id {a} |p| x : a -p> a = x in e
 
 (* compose {Int Int Int} |One One| *)
 let compose {a b c} |p q| f g x : #a @a (b -q> c) -> (a -p> b) -> a -p*q> c = f g x;
+let compose {a b c} |p q| f g x : @a @b @c #p #q (b -q> c) -> (a -p> b) -> a -p*q> c = f g x;
+
+
 
 foo : (@a a -> a) -> (Int, Bool)
-foo f x = (f {Int} x, f {Bool}  true)
+foo f x = (f {Int} x, f {Bool} true)
 
 (* Lambdas *)
 (\x -> x + 1)
