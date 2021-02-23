@@ -1,23 +1,33 @@
 open Lib
-open Monad
 
-module TestRWS = RWS (struct type t = int end) (UnitMonoid) (struct type t = int end)
+let src1 = "
+data PartyAnimal {a} |p| where
+  Cow     : a -p> PartyAnimal;
+  Giraffe : a -p> PartyAnimal;
+  Hyenas  : a ->  PartyAnimal;
+  Donkies : a ->  PartyAnimal;
+"
+let src2 = "let compose {a b c} |p q| f g x : @a @b @c #p #q (b -q> c) -> (a -p> b) -> a -p*q> c = f (g x);"
 
-open TestRWS
-let (let*) = bind 
-let (&) m1 m2 = bind m1 (fun _ -> m2)
+let src3 = "let x : Int -> Int = (\\(x : Int) -> x + 1);"
 
-let rws_test = 
-  let* a = ask in
-  put (a + 2) &
-  let* b = get in 
-  put (b * 3) & 
-  let* c = get in
-  pure (c + 1)
+let src4 = "let x : Foo = (/t -> id {t}) {Int};"
 
-let rws_result = let (_,a,_) = run_rws rws_test 0 0 in a
+let src5 = "let x : Foo = (|p -> (/t -> id {t} |p|));"
+let src6 = "let x : Int = -6;"
 
-let () =  
-  print_endline (string_of_int rws_result);
+let src7 = "
+  let x : Maybe {Maybe {Int}} |One| = case (Just (Just 4)) of
+    Just a -> Just a;
+    Nothing -> Just 0;
+  ;"
 
+let src8 = "let x = \'\n\'"
+
+let _ = 
+  print_endline (
+    Prettyprinter.pretty_print (
+      let lexbuf = Lexing.from_string src8
+      in Parse.Parser.defs Parse.Scanner.tokenize lexbuf
+  ))
 
