@@ -49,9 +49,9 @@ rule tokenize = parse
 | "Unr"                                 { MULT(true) }
 | "One"                                 { MULT(false) }
 | digits as lxm                         { LITERAL(int_of_string lxm) }
-| lchar+ (digit | lchar | uchar)* ('\'')? as lxm    
+| lchar+ (digit | lchar | uchar)* ('\'')* as lxm    
                                         { LID(lxm) }
-| uchar+ (digit | lchar | uchar)* ('\'')? as lxm    
+| uchar+ (digit | lchar | uchar)* ('\'')* as lxm    
                                         { UID(lxm) }
 | '\'' ((lchar | uchar) as lxm) '\''    { CHAR(lxm) }
 | eof                                   { EOF }

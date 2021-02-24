@@ -22,12 +22,21 @@ let src7 = "
     Nothing -> Just 0;
   ;"
 
-let src8 = "let x = \'\n\'"
+let src8 = "let a : Char = 'a';"
+
+let src9 = "
+let f : Int = 
+  let foo {a} {b} {c} |p| |q| f g x :
+          @a @b @c #p #q (a -p> b) -> ((a -p> b) ->
+              (b -q> c)) -> a -p*q> c
+          = f g x in
+  foo {Int} {Char} {Int} |Unr| |Unr|; 
+"
 
 let _ = 
   print_endline (
     Prettyprinter.pretty_print (
-      let lexbuf = Lexing.from_string src8
+      let lexbuf = Lexing.from_string src9
       in Parse.Parser.defs Parse.Scanner.tokenize lexbuf
   ))
 
