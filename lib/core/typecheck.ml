@@ -122,6 +122,7 @@ let check_fresh name =
     pure ()
 
 
+
 let rec check expr = 
   match expr with
   | BaseE (IntE _) -> 
@@ -175,11 +176,20 @@ let rec check expr =
       | _ -> raise (NotAMLam t')
     )
   | Let (l, e) ->
-    local (StringMap.union (fun _ _ _ -> None)
-            (StringMap.add_seq <<< List.to_seq <<< 
-              (List.map (fun (name, _, ty, _) -> name, ty)
-            ) l
-          )
+    let to_map = StringMap.of_seq <<< List.to_seq in
+    let add_vars = 
+      StringMap.union (fun _ _ _ -> None)
+      @@ to_map 
+      @@ List.map (fun (name, _, ty, _) -> name, ty) l in
+    let* tu_pairs = 
+      map_m (fun x -> x) 
+      @@ List.map (fun (_, _, _, e) -> local add_vars @@ check e) l in
+    let u_total = 
+      List.fold_left (fun u' (p, u) -> add u' (mult_mult p u)) (StringMap.empty)
+      @@ List.combine (List.map (fun (_, m, _, _) -> m) l)
+      @@ List.map snd tu_pairs in
+    let* (t, u) = local add_vars @@ check e in
+    pure (t, add u u_total)  
   | If (e1, e2, e3) -> 
       let* (t1, u1) = check e1 in
       let* (t2, u2) = check e2 in 

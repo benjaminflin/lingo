@@ -78,4 +78,13 @@ module RWS = functor (R : T) (W : MONOID) (S : T) -> struct
     let local f (RWS m) = RWS (fun r s -> m (f r) s)
     let tell w = RWS (fun _ s -> (s, (), w))
     let run_rws (RWS m) = m
+
+    let map_m f xs = 
+        let g a r =
+            let (let*) = bind in
+            let* x = f a in
+            let* xs = r in
+            pure (x::xs)
+        in
+        List.fold_right g xs (pure [])
 end
