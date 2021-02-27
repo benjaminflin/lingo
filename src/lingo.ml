@@ -17,7 +17,7 @@ let src5 = "let x : Foo = (|p -> (/t -> id {t} |p|));"
 let src6 = "let x : Int = -6;"
 
 let src7 = "
-  let x : Maybe {Maybe {Int}} |One| = case (Just (Just 4)) of
+  let x : Maybe {Maybe {Int}} |One| = case Just 4 of
     Just a -> Just a;
     Nothing -> Just 0;
   ;"
@@ -30,13 +30,17 @@ let f : Int =
           @a @b @c #p #q (a -p> b) -> ((a -p> b) ->
               (b -q> c)) -> a -p*q> c
           = f g x in
-  foo {Int} {Char} {Int} |Unr| |Unr|; 
+  foo {Int} {Char} {Int} |One| |Unr|; 
+"
+
+let src10 = "
+    let f : @a Maybe {a -> a} |Unr| = Just {Int} |Unr| 10;
 "
 
 let _ = 
   print_endline (
     Prettyprinter.pretty_print (
-      let lexbuf = Lexing.from_string src9
+      let lexbuf = Lexing.from_string src8
       in Parse.Parser.defs Parse.Scanner.tokenize lexbuf
   ))
 
