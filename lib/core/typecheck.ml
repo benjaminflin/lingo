@@ -7,7 +7,6 @@ type mult
   = One 
   | Unr
   | MVar of name 
-  | Plus of (mult * mult)
   | Times of (mult * mult)
 
 type base_t = IntT | BoolT
@@ -32,8 +31,7 @@ type expr
   | TLam of (name * expr)
   | TApp of (expr * ty)
   | Construction of (name * expr list)
-  | Let of (name * mult * ty * expr * expr)
-  | Letrec of ((name * mult * ty * expr) list * expr) 
+  | Let of ((name * mult * ty * expr) list * expr) 
   | Case of (expr * case_alt list)
   | If of (expr * expr * expr) 
 and case_alt 
@@ -45,6 +43,8 @@ exception NotAMLam of ty
 exception NotInScope of name
 exception NotAFunction of expr
 exception Mismatch of (ty * ty)
+exception UnsatisfiableConstraint of (mult * mult)
+exception AlreadyBound of name
 
 type env    = ty StringMap.t
 type usage  = mult StringMap.t 
@@ -56,6 +56,7 @@ open Check
 let (let*) = bind
 let (&) m m' = bind m (fun _ -> m')
 
+let (<<<) f g x = f (g x)
 let add_constr c = 
   let* cs = get in 
   put (c::cs)
@@ -67,21 +68,23 @@ let lookup_var x =
     | _ -> raise (NotInScope x)
 
 let simp = function
-  | Plus _          -> Unr
   | Times (a, One)  -> a
   | Times (One, a)  -> a
   | Times (Unr, _)  -> Unr
   | Times (_, Unr)  -> Unr
   | a               -> a
 let add a b = 
-  let f _ a b = Some (Plus (a, b)) in
+  let f _ _ _ = Some Unr in
   M.map (simp) (M.union f a b)
-let mult m a = M.map (simp) (M.map (fun a -> Times (m, a)) a)
+
+let mult_usage a b = 
+  let f _ a b = Some (Times (a, b)) in
+  M.map (simp) (M.union f a b)
+let mult_mult m a = M.map (simp) (M.map (fun a -> Times (m, a)) a)
 
 let rec subst_mult_mult subst mult = match (subst, mult) with
-  | (MVar a, b), (MVar c) -> if a == c then b else (MVar c)
+  | (MVar a, b), (MVar c) -> if a = c then b else (MVar c)
   | x, Times (a, b)       -> Times ((subst_mult_mult x a), (subst_mult_mult x b))
-  | x, Plus (a, b)        -> Plus ((subst_mult_mult x a), (subst_mult_mult x b))
   | _, m                  -> m 
 let rec subst_mult_ty subst ty = match (subst, ty) with
   | x, LamT (m, t, t') -> LamT ((subst_mult_mult x m), (subst_mult_ty x t), (subst_mult_ty x t'))
@@ -92,10 +95,31 @@ let rec subst_mult_ty subst ty = match (subst, ty) with
 let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
 let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
 
-(* let reduce_constraints = raise NotImplemented  *)
-let reduce_constraints = ()
-(* let reduce_constraints = 
-  let* a = get & *)
+let rec subst_ty_name subst ty = match (subst, ty) with
+  | (x, t), (TVar y)   -> if x = y then t else (TVar y)
+  | s, LamT (m, t, t') -> LamT (m, subst_ty_name s t, subst_ty_name s t')
+  | s, Forall (x, t)   -> Forall (x, subst_ty_name s t)
+  | s, ForallM (x, t)  -> ForallM (x, subst_ty_name s t)
+  | _, t               -> t
+
+let reduce_constraints =
+  let* cs = get in 
+  let  cs = List.map (fun (LE (m, m')) -> LE (simp m, simp m')) cs in
+  let reduce cs = function
+    | LE (Unr, One) -> raise (UnsatisfiableConstraint (Unr, One))
+    | LE (One, Unr) -> cs
+    | LE (Unr, Unr) -> cs
+    | LE (One, One) -> cs
+    | c             -> (c :: cs)
+  in 
+  put (List.fold_left reduce [] cs)
+
+let check_fresh name = 
+  let* env = ask in
+  if StringMap.mem name env then
+    raise (AlreadyBound name)
+  else
+    pure ()
 
 
 let rec check expr = 
@@ -121,25 +145,52 @@ let rec check expr =
     let* (t2, u2) = check e2 in
     (match t1 with
       | LamT (p, a, b) -> 
-        if a == t2 then 
-          pure (b, add u1 (mult p u2))
+        if a = t2 then 
+          pure (b, add u1 (mult_mult p u2))
         else
           raise (Mismatch (t2, a))
       | _ -> raise (NotAFunction e1))
   | MLam (x, e) -> 
-    (* Maybe TODO: subtract any existing p from env *)
+    check_fresh x &
     let* (t, u) = check e in
     pure (ForallM (x, t), u)
   | MApp (e, p) -> 
     let* (t', u) = check e in
     (match t' with 
-      | Forall(q, t) ->
+      | ForallM(q, t) ->
           modify (subst_mult_constr_list (MVar q, p)) &
-          (* reduce_constraints & *)
+          reduce_constraints &
           pure (subst_mult_ty (MVar q, p) t, u)
       | _ -> raise (NotAMLam t')
     )
-  | If (_, _, _) -> raise NotImplemented
+  | TLam (name, e) ->
+    check_fresh name &
+    let* (t, u) = check e in
+    pure (Forall (name, t), u)
+  | TApp (e, t) -> 
+    let* (t', u) = check e in
+    (match t' with 
+      | Forall(name, t'') ->
+          pure (subst_ty_name (name, t) t'', u)
+      | _ -> raise (NotAMLam t')
+    )
+  | Let (l, e) ->
+    local (StringMap.union (fun _ _ _ -> None)
+            (StringMap.add_seq <<< List.to_seq <<< 
+              (List.map (fun (name, _, ty, _) -> name, ty)
+            ) l
+          )
+  | If (e1, e2, e3) -> 
+      let* (t1, u1) = check e1 in
+      let* (t2, u2) = check e2 in 
+      let* (t3, u3) = check e3 in
+      (match t1 with
+        | BaseT (BoolT) -> 
+            if t2 = t3 then
+              pure (t2, add u1 (mult_usage u2 u3))
+            else 
+              raise (Mismatch (t2, t3))
+        | _ -> raise (Mismatch (t1, BaseT (BoolT))))
   | _ -> raise NotImplemented
 
 (* 
@@ -148,3 +199,20 @@ let _ =
   let expr = Parser.expr Scanner.tokenize lexbuf in
   let result = eval expr in
   print_endline (string_of_int result) *)
+
+(* MLam ("p", TLam ("t", Lam ("x", MVar "p", TBase TInt, Var "x"))*)
+
+(* 
+Example 1: UnsatisfiableConstraint
+let add2 = App (App (Var "+", Var "x"), Var "x") in 
+let rws = check @@ MApp (MLam ("p", Lam ("x", MVar "p", BaseT IntT, add2)), One) in 
+let plus_ty = LamT (One, BaseT IntT, LamT (One, BaseT IntT, BaseT (IntT))) in 
+Check.run_rws rws (StringMap.singleton "+" plus_ty) []
+
+Example 2: If Statement UnsatisfiableConstraint
+let add x = App (App (Var "+", Var "x"), x) in 
+let ifstmt = If (BaseE (BoolE true), add (Var "x"), add (BaseE (IntE 1))) in 
+let rws = check @@ MApp (MLam ("p", Lam ("x", MVar "p", BaseT IntT, ifstmt)), One) in 
+let plus_ty = LamT (One, BaseT IntT, LamT (One, BaseT IntT, BaseT (IntT))) in 
+Check.run_rws rws (StringMap.singleton "+" plus_ty) []
+*)
