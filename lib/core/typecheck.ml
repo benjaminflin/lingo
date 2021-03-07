@@ -13,6 +13,7 @@ type base_t = IntT | BoolT
 type ty
   = BaseT of base_t 
   | TVar of name
+  | Data of (name * mult list * ty list)  
   | LamT of (mult * ty * ty)
   | Forall of (name * ty)
   | ForallM of (name * ty)
@@ -21,6 +22,7 @@ type base_e
   = IntE of int
   | BoolE of bool
   | CharE of char
+
 type expr  
   = BaseE of base_e
   | Var of name
@@ -30,13 +32,14 @@ type expr
   | MApp of (expr * mult) 
   | TLam of (name * expr)
   | TApp of (expr * ty)
-  | Construction of (name * expr list)
+  | Construction of (name)
   | Let of ((name * mult * ty * expr) list * expr) 
-  | Case of (expr * case_alt list)
+  | Case of (mult * expr * case_alt list)
   | If of (expr * expr * expr) 
 and case_alt 
-  = Constructor of (name list * expr)
+  = Constructor of (name * name list * expr)
   | Wildcard of expr
+
 
 exception NotImplemented 
 exception NotAMLam of ty
@@ -45,6 +48,8 @@ exception NotAFunction of expr
 exception Mismatch of (ty * ty)
 exception UnsatisfiableConstraint of (mult * mult)
 exception AlreadyBound of name
+exception NotADataType of ty 
+exception InvalidConstructor 
 
 type env    = ty StringMap.t
 type usage  = mult StringMap.t 
@@ -121,6 +126,28 @@ let check_fresh name =
   else
     pure ()
 
+(* extracts multiplicites from a constructor type *)
+(* Just : @a a -> Maybe {a} *)
+(* Just : @a (a -> a) -> Maybe {a} *)
+let rec extract_mults = function
+| ForallM(_, t)   -> extract_mults t 
+| Forall(_, t)    -> extract_mults t 
+| Data(_, _, _)   -> [] 
+| LamT(m, _, t2)  -> m :: (extract_mults t2)
+| _               -> raise InvalidConstructor
+
+(* Assumes rank-1 data constructors *)
+let rec extract_names = function
+| ForallM(n, t)   -> n :: (extract_names t)
+| Forall(_, t)    -> extract_names t
+| _               -> raise InvalidConstructor
+
+  (* = BaseT of base_t 
+  | TVar of name
+  | Data of (name * mult list * ty list)  
+  | LamT of (mult * ty * ty)
+  | Forall of (name * ty)
+  | ForallM of (name * ty *)
 
 
 let rec check expr = 
@@ -132,7 +159,7 @@ let rec check expr =
     pure (BaseT BoolT, M.empty)
 
   | (Var x) -> lookup_var x
-   
+  | (Construction x) -> lookup_var x
   | (Lam (x, m, t, e)) ->
     let* (t', u) = local (M.add x t) (check e) in
     let m' = (match M.find_opt x u with 
@@ -201,14 +228,33 @@ let rec check expr =
             else 
               raise (Mismatch (t2, t3))
         | _ -> raise (Mismatch (t1, BaseT (BoolT))))
+  | Case (m, e, alts) ->
+      let* (t1, u1) = check e in
+      let _ = (match t1 with 
+        | Data(name, ml, tl) -> raise NotImplemented 
+        | _ -> raise @@ NotADataType t1
+      ) in
+      pure (BaseT BoolT, u1)
   | _ -> raise NotImplemented
+
+
+(* let check_case_alt m ml = function 
+| Constructor(c, nl, e) -> 
+  let* (t, _) = lookup_var c in
+  let us = extract_mults t in
+  let ps = extract_names ml in
+  List.fold_left (subst_mult_mult) ml
+| Wildcard e -> pure () *)
+            
+(* Construction and Cases *)
 
 (* 
 let _ =
   let lexbuf = Lexing.from_channel stdin in
   let expr = Parser.expr Scanner.tokenize lexbuf in
   let result = eval expr in
-  print_endline (string_of_int result) *)
+  print_endline (string_of_int result)
+*)
 
 (* MLam ("p", TLam ("t", Lam ("x", MVar "p", TBase TInt, Var "x"))*)
 
@@ -225,4 +271,9 @@ let ifstmt = If (BaseE (BoolE true), add (Var "x"), add (BaseE (IntE 1))) in
 let rws = check @@ MApp (MLam ("p", Lam ("x", MVar "p", BaseT IntT, ifstmt)), One) in 
 let plus_ty = LamT (One, BaseT IntT, LamT (One, BaseT IntT, BaseT (IntT))) in 
 Check.run_rws rws (StringMap.singleton "+" plus_ty) []
+
+Example 3: Constructors vs Vars
+let just_ty = Forall ("a", LamT (Unr, TVar "a", TVar "Maybe")) in
+let rws = check @@ (Construction "Just") in
+Check.run_rws rws (StringMap.singleton "Just" just_ty) []
 *)
