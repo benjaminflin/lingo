@@ -228,13 +228,13 @@ let rec check expr =
             else 
               raise (Mismatch (t2, t3))
         | _ -> raise (Mismatch (t1, BaseT (BoolT))))
-  | Case (m, e, alts) ->
+  (* | Case (m, e, alts) ->
       let* (t1, u1) = check e in
       let _ = (match t1 with 
         | Data(name, ml, tl) -> raise NotImplemented 
         | _ -> raise @@ NotADataType t1
       ) in
-      pure (BaseT BoolT, u1)
+      pure (BaseT BoolT, u1) *)
   | _ -> raise NotImplemented
 
 

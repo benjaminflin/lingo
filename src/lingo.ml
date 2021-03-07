@@ -1,4 +1,4 @@
-open Lib
+(* open Lib *)
 
 let src1 = "
 data PartyAnimal {a} |p| where
@@ -39,10 +39,13 @@ let src10 = "
     let f : @a Maybe {a -> a} |Unr| = Just {Int} |Unr| 10;
 "
 
-let _ = 
+(* let _ = 
   print_endline (
     Prettyprinter.pretty_print (
       let lexbuf = Lexing.from_string src8
       in Parse.Parser.defs Parse.Scanner.tokenize lexbuf
-  ))
+  )) *)
 
+let _ =
+  let lexbuf = Lexing.from_string src8
+  print_endline "hello"

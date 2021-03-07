@@ -19,18 +19,16 @@ rule tokenize = parse
 | "||"                                  { OR }
 | "&&"                                  { AND }
 | "!"                                   { NOT }
-| '|'                                   { VBAR }
 | "()"                                  { UNIT }
 | ':'                                   { COLON }
 | ';'                                   { SEMICOLON }
 | '_'                                   { WILDCARD }
 | '\\'                                  { BACKSLASH }
+| '`'                                   { BACKTICK }
 | '('                                   { LPAREN }
 | ')'                                   { RPAREN }
 | '@'                                   { FORALL }
 | '#'                                   { FORALLM }
-| '{'                                   { LBRACE }
-| '}'                                   { RBRACE }
 | '+'                                   { PLUS }
 | '-'                                   { DASH }
 | '*'                                   { STAR }
@@ -46,8 +44,8 @@ rule tokenize = parse
 | "where"                               { WHERE }
 | "true"                                { BOOL(true) }
 | "false"                               { BOOL(false) }
-| "Unr"                                 { MULT(true) }
-| "One"                                 { MULT(false) }
+| "Unr"                                 { UNR }
+| "One"                                 { ONE }
 | digits as lxm                         { LITERAL(int_of_string lxm) }
 | '\'' ((digit | lchar | uchar) as lxm) '\''   
                                         { CHAR(lxm) }
