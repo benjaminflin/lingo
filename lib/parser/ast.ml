@@ -9,11 +9,11 @@ type name = string
 type ty
   = TVar of name
   | TName of name
-  | Arr of (mult * ty * ty)
-  | Inst of (ty * ty)
-  | InstM of (ty * mult)
-  | Forall of (name * ty)
-  | ForallM of (name * ty)
+  | Arr of mult * ty * ty
+  | Inst of ty * ty
+  | InstM of ty * mult
+  | Forall of name * ty
+  | ForallM of name * ty
 
 type binop 
   = Lt | Gt | Leq | Geq | Neq | Eq | Plus | Minus | Divide | Times | And | Or
@@ -27,7 +27,7 @@ and infer_expr
   = Var of name
   | Binop of binop
   | Unop of unop
-  | Let of name * name list * mult * infer_expr * infer_expr
+  | Let of name * mult * infer_expr * infer_expr
   | Type of ty
   | Mult of mult
   | App of infer_expr * check_expr

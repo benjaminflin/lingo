@@ -66,16 +66,16 @@ infer_expr:
 | IF infer_expr THEN infer_expr ELSE infer_expr     { If($2, $4, $6) } 
 | LPAREN check_expr COLON ty RPAREN                 { Ann($2, $4) }
 | CASE infer_expr OF case_alts                      { Case($2, $4) }
+| NOT infer_expr                                    { App(Unop(Not), Infer($2)) }
+| DASH infer_expr %prec NOT                         { App(Unop(Neg), Infer($2)) }
 | app_term                                          { $1 }
 | let_expr                                          { $1 }
 | bin_operation                                     { $1 } 
 | app_term BACKTICK LID BACKTICK app_term           { App(App(Var($3), Infer($1)), Infer($5)) }
 
 let_expr:
-| LET LID COLON mult ASSIGN infer_expr IN infer_expr                { Let($2, [], $4, $6, $8) }
-| LET LID name_list COLON mult ASSIGN infer_expr IN infer_expr      { Let($2, $3, $5, $7, $9) }
-| LET LID ASSIGN infer_expr IN infer_expr                           { Let($2, [], Unr, $4, $6) }
-| LET LID name_list ASSIGN infer_expr IN infer_expr                 { Let($2, $3, Unr, $5, $7) }
+| LET LID COLON mult ASSIGN infer_expr IN infer_expr                { Let($2, $4, $6, $8) }
+| LET LID ASSIGN infer_expr IN infer_expr                           { Let($2, Unr, $4, $6) }
 
 app_term:
 | atomic_term                                       { $1 }

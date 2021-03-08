@@ -47,5 +47,4 @@ let src10 = "
   )) *)
 
 let _ =
-  let lexbuf = Lexing.from_string src8
   print_endline "hello"
