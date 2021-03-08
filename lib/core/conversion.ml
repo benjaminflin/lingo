@@ -5,7 +5,6 @@ exception ExpectedArrow of Ast.ty
 exception TypeInWrongPlace of Ast.ty
 exception MultInWrongPlace of Ast.mult
 
-
 let rec mult_to_mult = function
 | Ast.One -> Tc.One
 | Ast.Unr -> Tc.Unr
@@ -29,16 +28,15 @@ let rec ty_to_ty = function
 
 let arr_get_mult = function
 | Ast.Arr (m, _, _) -> mult_to_mult m
-| t -> raise (ExpectedArrow t)
-
-let arr_get_lhs = function
-| Ast.Arr (_, s, _) -> s
+| Ast.Forall _ -> Unr 
+| Ast.ForallM _ -> Unr 
 | t -> raise (ExpectedArrow t)
 
 let arr_get_rhs = function
 | Ast.Arr (_, _, t) -> t
+| Ast.Forall (_, t) -> t
+| Ast.ForallM (_, t) -> t 
 | t -> raise (ExpectedArrow t)
-
 
 let rec name_list_to_lam check_expr ty = function
 | [] -> check_expr 
@@ -47,9 +45,6 @@ let rec name_list_to_lam check_expr ty = function
 let rec name_list_to_lam_unr check_expr = function
 | [] -> check_expr 
 | x::xs -> Tc.Lam (x, Tc.Unr, name_list_to_lam_unr check_expr xs)
-
-
-
 
 let binop_to_binop = function
 | Ast.Leq -> Tc.Leq
