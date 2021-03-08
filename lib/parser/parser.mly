@@ -58,9 +58,13 @@ let_def:
 | LID COLON ty ASSIGN check_expr SEMICOLON           { LetDef($1, [], $3, $5) }
 | LID name_list COLON ty ASSIGN check_expr SEMICOLON { LetDef($1, $2, $4, $6) }
 
+lambda:
+| BACKSLASH LID arrow check_expr                { Lam($2, $3, $4) } 
+| LPAREN lambda RPAREN                          { $2 } 
+
 check_expr:
-| BACKSLASH LID arrow check_expr    { Lam($2, $3, $4) } 
-| infer_expr                        { Infer($1) }
+| lambda        { $1 } 
+| infer_expr    { Infer($1) }
 
 infer_expr:
 | IF infer_expr THEN infer_expr ELSE infer_expr     { If($2, $4, $6) } 
@@ -71,11 +75,12 @@ infer_expr:
 | app_term                                          { $1 }
 | let_expr                                          { $1 }
 | bin_operation                                     { $1 } 
+| app_term lambda                                   { App($1, $2) }
 | app_term BACKTICK LID BACKTICK app_term           { App(App(Var($3), Infer($1)), Infer($5)) }
 
 let_expr:
-| LET LID COLON mult ASSIGN infer_expr IN infer_expr                { Let($2, $4, $6, $8) }
-| LET LID ASSIGN infer_expr IN infer_expr                           { Let($2, Unr, $4, $6) }
+| LET mult LID ASSIGN infer_expr IN infer_expr                { Let($3, $2, $5, $7) }
+| LET LID ASSIGN infer_expr IN infer_expr                     { Let($2, Unr, $4, $6) }
 
 app_term:
 | atomic_term                                       { $1 }
