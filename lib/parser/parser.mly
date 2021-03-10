@@ -2,7 +2,7 @@
 open Ast 
 %}
 
-%token COLON SEMICOLON WILDCARD BACKSLASH LPAREN RPAREN UNIT BACKTICK
+%token COLON SEMICOLON WILDCARD BACKSLASH LPAREN RPAREN UNIT BACKTICK DOT
 %token PLUS DASH STAR SLASH ASSIGN EQ NEQ LT LEQ GT GEQ OR AND NOT
 %token IF THEN ELSE LET IN OF DATA CASE WHERE FORALL FORALLM
 %token UNR ONE
@@ -59,8 +59,8 @@ let_def:
 | LID name_list COLON ty ASSIGN check_expr SEMICOLON { LetDef($1, $2, $4, $6) }
 
 lambda:
-| BACKSLASH LID arrow check_expr                { Lam($2, $3, $4) } 
-| LPAREN lambda RPAREN                          { $2 } 
+| BACKSLASH LID DOT check_expr                { Lam($2, $4) } 
+| LPAREN lambda RPAREN                        { $2 } 
 
 check_expr:
 | lambda        { $1 } 
@@ -79,8 +79,8 @@ infer_expr:
 | app_term BACKTICK LID BACKTICK app_term           { App(App(Var($3), Infer($1)), Infer($5)) }
 
 let_expr:
-| LET mult LID ASSIGN infer_expr IN infer_expr                { Let($3, $2, $5, $7) }
-| LET LID ASSIGN infer_expr IN infer_expr                     { Let($2, Unr, $4, $6) }
+| LET mult LID COLON ty ASSIGN check_expr IN infer_expr                { Let($3, $2, $5, $7, $9) }
+| LET LID COLON ty ASSIGN check_expr IN infer_expr                     { Let($2, Unr, $4, $6, $8) }
 
 app_term:
 | atomic_term                                       { $1 }
@@ -151,7 +151,7 @@ arrow:
 | DASH mult GT { $2 } 
 
 mult:
-| atomic_mult STAR atomic_mult  { Times($1, $3) }
+| atomic_mult STAR atomic_mult  { MTimes($1, $3) }
 | atomic_mult                   { $1 }
 
 atomic_mult:

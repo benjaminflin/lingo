@@ -25,6 +25,7 @@ rule tokenize = parse
 | '_'                                   { WILDCARD }
 | '\\'                                  { BACKSLASH }
 | '`'                                   { BACKTICK }
+| '.'                                   { DOT }
 | '('                                   { LPAREN }
 | ')'                                   { RPAREN }
 | '@'                                   { FORALL }

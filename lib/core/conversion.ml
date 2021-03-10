@@ -8,7 +8,7 @@ exception MultInWrongPlace of Ast.mult
 let rec mult_to_mult = function
 | Ast.One -> Tc.One
 | Ast.Unr -> Tc.Unr
-| Ast.Times (a, b) -> Tc.Times (mult_to_mult a, mult_to_mult b)
+| Ast.MTimes (a, b) -> Tc.MTimes (mult_to_mult a, mult_to_mult b)
 | Ast.MVar a -> Tc.MVar a
 
 let tname_to_ty = function
@@ -40,11 +40,11 @@ let arr_get_rhs = function
 
 let rec name_list_to_lam check_expr ty = function
 | [] -> check_expr 
-| x::xs -> Tc.Lam (x, arr_get_mult ty, name_list_to_lam check_expr (arr_get_rhs ty) xs)
+| x::xs -> Tc.Lam (x, name_list_to_lam check_expr (arr_get_rhs ty) xs)
 
 let rec name_list_to_lam_unr check_expr = function
 | [] -> check_expr 
-| x::xs -> Tc.Lam (x, Tc.Unr, name_list_to_lam_unr check_expr xs)
+| x::xs -> Tc.Lam (x, name_list_to_lam_unr check_expr xs)
 
 let binop_to_binop = function
 | Ast.Leq -> Tc.Leq
@@ -65,7 +65,7 @@ let unop_to_unop = function
 | Ast.Neg -> Tc.Neg
 
 let rec check_expr_to_check_expr = function
-| Ast.Lam (name, mult, check_expr) -> Tc.Lam (name, mult_to_mult mult, check_expr_to_check_expr check_expr)  
+| Ast.Lam (name, check_expr) -> Tc.Lam (name, check_expr_to_check_expr check_expr)  
 | Ast.Infer infer_expr -> Tc.Infer (infer_expr_to_infer_expr infer_expr)
 and infer_expr_to_infer_expr = function
 | Ast.Var name -> 
@@ -74,8 +74,8 @@ and infer_expr_to_infer_expr = function
   Tc.Binop (binop_to_binop binop)
 | Ast.Unop unop -> 
   Tc.Unop (unop_to_unop unop)
-| Ast.Let (name, mult, infer_expr, infer_expr_2) -> 
-  Tc.Let (name, mult_to_mult mult, infer_expr_to_infer_expr infer_expr, infer_expr_to_infer_expr infer_expr_2)
+| Ast.Let (name, mult, ty, check_expr, infer_expr) -> 
+  Tc.Let (name, mult_to_mult mult, ty_to_ty ty, check_expr_to_check_expr check_expr, infer_expr_to_infer_expr infer_expr)
 | Ast.App (infer_expr, Ast.Infer (Ast.Type ty)) ->
   Tc.TApp (infer_expr_to_infer_expr infer_expr, ty_to_ty ty)
 | Ast.App (infer_expr, Ast.Infer (Ast.Mult mult)) ->

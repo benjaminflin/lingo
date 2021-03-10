@@ -2,7 +2,7 @@ type mult
   = One 
   | Unr 
   | MVar of string
-  | Times of mult * mult
+  | MTimes of mult * mult
 
 type name = string
 
@@ -21,13 +21,13 @@ type binop
 type unop = Not | Neg
 
 type check_expr
-  = Lam of name * mult * check_expr
+  = Lam of name * check_expr
   | Infer of infer_expr
 and infer_expr 
   = Var of name
   | Binop of binop
   | Unop of unop
-  | Let of name * mult * infer_expr * infer_expr
+  | Let of name * mult * ty * check_expr * infer_expr
   | Type of ty
   | Mult of mult
   | App of infer_expr * check_expr
