@@ -66,6 +66,7 @@ type mult_constraint = LE of mult * mult
 exception TypeMismatch of ty * ty
 exception ExpectedAbs of ty
 exception NotImplemented 
+exception UnsatisfiableConstraint of mult * mult 
 
 let cond c e = if c then () else raise e
 
@@ -81,15 +82,33 @@ let rec union_with f l = function
   | Some v2 -> (x, f v1 v2)::(union_with f (remove x l) xs)
   | None -> (x, v1)::(union_with f l xs)) 
 
+let simp = function
+  | MTimes (a, One)  -> a
+  | MTimes (One, a)  -> a
+  | MTimes (Unr, _)  -> Unr
+  | MTimes (_, Unr)  -> Unr
+  | a               -> a
+
 let add_usage x y = union_with (fun _ _ -> Unr) x y
+let multiply_usage x y = union_with (fun a b -> MTimes (a, b)) x y
+
+let reduce_constraints cs = 
+  let reduce cs = function
+    | LE (Unr, One) -> raise (UnsatisfiableConstraint (Unr, One))
+    | LE (One, Unr) -> cs
+    | LE (Unr, Unr) -> cs
+    | LE (One, One) -> cs
+    | c             -> (c :: cs)
+  in 
+  List.fold_left reduce [] cs
 
 let rec subst_mult_mult subst mult = match (subst, mult) with
   | (a, b), (MVar c) -> if a = c then b else (MVar c)
-  | x, MTimes (a, b) -> MTimes ((subst_mult_mult x a), (subst_mult_mult x b))
+  | s, MTimes (a, b) -> MTimes ((subst_mult_mult s a), (subst_mult_mult s b))
   | _, m -> m 
 let rec subst_mult_ty subst ty = match (subst, ty) with
-  | x, Arr (m, t, t') -> Arr ((subst_mult_mult x m), (subst_mult_ty x t), (subst_mult_ty x t'))
-  | x, ForallM (p, t) -> ForallM (p, subst_mult_ty x t)
+  | s, Arr (m, t, t') -> Arr (subst_mult_mult s m, subst_mult_ty s t, subst_mult_ty s t')
+  | (x, _) as s, ForallM (p, t) -> if x = p then ForallM (p, t) else ForallM (p, subst_mult_ty s t)
   | x, Forall (p, t) -> Forall (p, subst_mult_ty x t)
   | _, t -> t
 
@@ -99,10 +118,9 @@ let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
 let rec subst_ty_ty subst ty = match (subst, ty) with
   | (x, t), (TVar y) -> if x = y then t else (TVar y)
   | s, Arr (m, t, t') -> Arr (m, subst_ty_ty s t, subst_ty_ty s t')
-  | s, Forall (x, t) -> Forall (x, subst_ty_ty s t)
-  | s, ForallM (x, t)-> ForallM (x, subst_ty_ty s t)
+  | (x, _) as s, Forall (y, t) -> if x = y then Forall (y, t) else Forall (y, subst_ty_ty s t)
+  | s, ForallM (x, t) -> ForallM (x, subst_ty_ty s t)
   | _, t -> t
-
 
 let rec check env ty constr = function
 | Lam (name, check_expr) -> 
@@ -110,7 +128,7 @@ let rec check env ty constr = function
     | Arr (expected_mult, in_ty, out_ty) -> 
       let usage_env, constr = check ((name, in_ty)::env) out_ty constr check_expr in
       let actual_mult = try lookup name usage_env with | Not_found -> Unr in
-      remove name usage_env, (LE (actual_mult, expected_mult))::constr
+      remove name usage_env, reduce_constraints @@ (LE (actual_mult, expected_mult))::constr
     | Forall  (_, ty') -> check env ty' constr check_expr 
     | ForallM (_, ty') -> check env ty' constr check_expr
     | t -> raise (ExpectedAbs t))
@@ -142,13 +160,25 @@ and infer env constr = function
 | MApp (infer_expr, mult) ->
   let lhs_ty, u_env, constr = infer env constr infer_expr in
     (match lhs_ty with
-    | ForallM (name, ty) -> subst_mult_ty (name, mult) ty, u_env, constr 
+    | ForallM (name, ty) -> subst_mult_ty (name, mult) ty, u_env, reduce_constraints @@ subst_mult_constr_list (name, mult) constr
     | t -> raise @@ ExpectedAbs t) 
 | TApp (infer_expr, ty) ->
   let lhs_ty, u_env, constr = infer env constr infer_expr in
     (match lhs_ty with
     | Forall (name, ty') -> subst_ty_ty (name, ty) ty', u_env, constr 
     | t -> raise @@ ExpectedAbs t) 
+| Construction name -> lookup name env, [], constr
+| If (infer_expr, infer_expr_a, infer_expr_b) ->
+  let ty, u_env, constr = infer env constr infer_expr in
+  cond (ty = BaseT IntT) (TypeMismatch (ty, (BaseT IntT)));
+  let ty_a, u_env_a, constr = infer env constr infer_expr_a in
+  let ty_b, u_env_b, constr = infer env constr infer_expr_b in
+  cond (ty_a = ty_b) (TypeMismatch (ty_a, ty_b));
+  ty_a, add_usage u_env (multiply_usage u_env_a u_env_b), constr
+| Ann (check_expr, ty) -> 
+  let u_env, constr = check env ty constr check_expr in
+  ty, u_env, constr
+(* | Case (infer_expr, case_alts) *)
 | Lit _ -> BaseT IntT, [], constr
 | Char _ -> BaseT CharT, [], constr
 | Bool _ -> BaseT BoolT, [], constr
