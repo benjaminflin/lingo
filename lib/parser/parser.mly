@@ -45,6 +45,7 @@ data_param_list:
  
 data_param:
 | FORALL LID    { TypeParam($2) }
+| LID           { TypeParam($1) }
 | FORALLM LID   { MultParam($2) }
 
 cons_list:
@@ -88,7 +89,7 @@ app_term:
 
 atomic_term:
 | LPAREN infer_expr RPAREN      { $2 }
-| UNIT                          { Var("unit") } 
+| UNIT                          { Construction("unit") } 
 | LID                           { Var($1) }
 | UID                           { Construction($1) }
 | LITERAL                       { Lit($1) }
@@ -128,12 +129,12 @@ ty:
 | FORALL LID ty      { Forall($2, $3) }
 | FORALLM LID ty     { ForallM($2, $3) }
 | app_ty arrow ty    { Arr($2, $1, $3) }
-| app_ty             { $1 }
 | mapp_ty            { $1 }
 
 mapp_ty:
 | mapp_ty FORALLM mult { InstM($1, $3) }
-| app_ty FORALLM mult { InstM($1, $3) }
+| mapp_ty FORALL atomic_ty { Inst($1, $3) }
+| app_ty { $1 }
 
 app_ty:
 | atomic_ty app_ty    { Inst($1, $2) }

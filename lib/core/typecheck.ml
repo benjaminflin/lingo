@@ -65,8 +65,12 @@ type mult_constraint = LE of mult * mult
 
 exception TypeMismatch of ty * ty
 exception ExpectedAbs of ty
+exception ExpectedAbsApp of ty
+exception ExpectedAbsMApp of ty
+exception ExpectedAbsTApp of ty
 exception NotImplemented 
 exception UnsatisfiableConstraint of mult * mult 
+exception CaseResultMismatch of ty  
 
 let cond c e = if c then () else raise e
 
@@ -107,20 +111,48 @@ let rec subst_mult_mult subst mult = match (subst, mult) with
   | s, MTimes (a, b) -> MTimes ((subst_mult_mult s a), (subst_mult_mult s b))
   | _, m -> m 
 let rec subst_mult_ty subst ty = match (subst, ty) with
-  | s, Arr (m, t, t') -> Arr (subst_mult_mult s m, subst_mult_ty s t, subst_mult_ty s t')
   | (x, _) as s, ForallM (p, t) -> if x = p then ForallM (p, t) else ForallM (p, subst_mult_ty s t)
-  | x, Forall (p, t) -> Forall (p, subst_mult_ty x t)
+  | s, Arr (m, t, t') -> Arr (subst_mult_mult s m, subst_mult_ty s t, subst_mult_ty s t')
+  | s, Forall (p, t) -> Forall (p, subst_mult_ty s t)
+  | s, Inst (t, t') -> Inst (subst_mult_ty s t, subst_mult_ty s t')
+  | s, InstM (t, m) -> InstM (subst_mult_ty s t, subst_mult_mult s m)
   | _, t -> t
 
 let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
 let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
+
+let subst_mult_list_mult subst_list mult = List.fold_left (fun m subst -> subst_mult_mult subst m) mult subst_list
 
 let rec subst_ty_ty subst ty = match (subst, ty) with
   | (x, t), (TVar y) -> if x = y then t else (TVar y)
   | s, Arr (m, t, t') -> Arr (m, subst_ty_ty s t, subst_ty_ty s t')
   | (x, _) as s, Forall (y, t) -> if x = y then Forall (y, t) else Forall (y, subst_ty_ty s t)
   | s, ForallM (x, t) -> ForallM (x, subst_ty_ty s t)
+  | s, Inst (t, t') -> Inst (subst_ty_ty s t, subst_ty_ty s t')
+  | s, InstM (t, m) -> InstM (subst_ty_ty s t, m) 
   | _, t -> t
+
+let rec case_mults = function
+| Arr (m, _, to_ty) -> m :: case_mults to_ty 
+| Forall (_, ty) -> case_mults ty
+| ForallM (_, ty) -> case_mults ty
+| _ -> []
+
+let rec case_types = function
+| Arr (_, from_ty, to_ty) -> from_ty :: case_types to_ty 
+| Forall (_, ty) -> case_types ty
+| ForallM (_, ty) -> case_types ty
+| _ -> []
+
+let rec case_mult_intros = function
+| Forall (_, ty) -> case_mult_intros ty
+| ForallM (name, ty) -> name :: (case_mult_intros ty)
+| _ -> []
+
+let rec case_scrut_mults = function
+| InstM (to_inst, mult) -> mult :: case_scrut_mults to_inst
+| Inst (to_inst, _) -> case_scrut_mults to_inst
+| _ -> []
 
 let rec check env ty constr = function
 | Lam (name, check_expr) -> 
@@ -156,17 +188,17 @@ and infer env constr = function
     | Arr (mult, in_ty, out_ty) -> 
       let u_env2, constr = check env in_ty constr check_expr in
       out_ty, add_usage u_env1 (scale_usage mult u_env2), constr
-    | t -> raise @@ ExpectedAbs t)
+    | t -> raise @@ ExpectedAbsApp t)
 | MApp (infer_expr, mult) ->
   let lhs_ty, u_env, constr = infer env constr infer_expr in
     (match lhs_ty with
     | ForallM (name, ty) -> subst_mult_ty (name, mult) ty, u_env, reduce_constraints @@ subst_mult_constr_list (name, mult) constr
-    | t -> raise @@ ExpectedAbs t) 
+    | t -> raise @@ ExpectedAbsMApp t) 
 | TApp (infer_expr, ty) ->
   let lhs_ty, u_env, constr = infer env constr infer_expr in
     (match lhs_ty with
     | Forall (name, ty') -> subst_ty_ty (name, ty) ty', u_env, constr 
-    | t -> raise @@ ExpectedAbs t) 
+    | t -> raise @@ ExpectedAbsTApp t) 
 | Construction name -> lookup name env, [], constr
 | If (infer_expr, infer_expr_a, infer_expr_b) ->
   let ty, u_env, constr = infer env constr infer_expr in
@@ -178,8 +210,63 @@ and infer env constr = function
 | Ann (check_expr, ty) -> 
   let u_env, constr = check env ty constr check_expr in
   ty, u_env, constr
-(* | Case (infer_expr, case_alts) *)
+| Case (infer_expr, case_alts) ->
+  let ty_scrut, u_env, constr = infer env constr infer_expr in
+  let infer_case_alt = function
+  | Destructor (name, varnames, rhs) -> (
+    let data_ty     = lookup name env in 
+    let var_mults   = case_mults data_ty in
+    let mult_intros = case_mult_intros data_ty in 
+    let scrut_mults = case_scrut_mults ty_scrut in
+    let types       = case_types data_ty in  
+    let intros      = List.combine varnames types in
+    let ty, u_env, constr = infer (intros @ env) constr rhs in
+    let gen_constraint (name, expected_mult) = 
+      let actual_mult = try lookup name u_env with Not_found -> Unr in 
+      let substs = List.combine mult_intros scrut_mults in
+      LE (actual_mult, subst_mult_list_mult substs expected_mult) in
+    let constr' = List.map gen_constraint (List.combine varnames var_mults) in
+    let u_env = List.fold_left (fun u n -> remove n u) u_env varnames in
+    ty, u_env, (constr' @ constr) 
+    )
+  | Wildcard rhs -> infer env constr rhs 
+  in
+  let rhs_res = List.map infer_case_alt case_alts in
+  let constr = List.concat (List.map (fun (_, _, c) -> c) rhs_res) in
+  let u_env_rhs = List.concat (List.map (fun (_, u, _) -> u) rhs_res) in
+  let rhs_tys = List.map (fun (t, _, _) -> t) rhs_res in
+  let rhs_ty, _, _ = List.hd rhs_res in
+  let all_same = List.for_all (fun t -> t = rhs_ty) rhs_tys in (* TODO: α equiv *)
+  cond (all_same) (CaseResultMismatch rhs_ty);
+  rhs_ty, add_usage u_env u_env_rhs, constr 
 | Lit _ -> BaseT IntT, [], constr
 | Char _ -> BaseT CharT, [], constr
 | Bool _ -> BaseT BoolT, [], constr
-| _ -> raise NotImplemented
+
+let rec abstr t = function
+| (MultParam x)::xs -> ForallM (x, abstr t xs)
+| (TypeParam x)::xs -> Forall (x, abstr t xs)
+| [] -> t
+
+let rec app_params t = function
+| (MultParam x)::xs -> InstM (app_params t xs, MVar x)
+| (TypeParam x)::xs -> Inst (app_params t xs, TVar x)
+| [] -> t
+
+let rec data_res_ty dpl = function 
+| Forall (x, ty) -> Forall (x, data_res_ty dpl ty)
+| ForallM (x, ty) -> ForallM (x, data_res_ty dpl ty)
+| Arr (m, from_ty, ty) -> Arr (m, from_ty, data_res_ty dpl ty)
+| ty -> app_params ty dpl
+
+let def_to_env = function
+| DataDef(_, dpl, cdl) -> List.map (fun (Cons (name, ty)) -> (name, abstr (data_res_ty (List.rev dpl) ty) dpl)) cdl
+| LetDef(name, ty, _) -> [(name, ty)]
+let check_prog prog = 
+  let unit_ty = ("unit", DataTy "Unit") in
+  let env = unit_ty :: List.concat_map def_to_env prog in
+  let check_def = function
+  | LetDef (_, ty, check_expr) -> ignore (check env ty [] check_expr)
+  | _ -> ()
+  in
+  List.iter check_def prog
