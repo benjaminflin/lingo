@@ -160,7 +160,7 @@ let rec check env ty constr = function
     | Arr (expected_mult, in_ty, out_ty) -> 
       let usage_env, constr = check ((name, in_ty)::env) out_ty constr check_expr in
       let actual_mult = try lookup name usage_env with | Not_found -> Unr in
-      remove name usage_env, reduce_constraints @@ (LE (actual_mult, expected_mult))::constr
+      remove name usage_env, reduce_constraints @@ (LE (simp actual_mult, simp expected_mult))::constr
     | Forall  (_, ty') -> check env ty' constr check_expr 
     | ForallM (_, ty') -> check env ty' constr check_expr
     | t -> raise (ExpectedAbs t))
