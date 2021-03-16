@@ -13,8 +13,9 @@ let ast =
   let lexbuf = Lexing.from_string src2 in
   Parse.Parser.program Parse.Scanner.tokenize lexbuf
 
+
 let core_ast =
   Core.Conversion.convert ast
 
-let _ =
-  Core.Typecheck.check_prog core_ast
+
+let _ = print_string "converted successfully\n"

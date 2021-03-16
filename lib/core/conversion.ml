@@ -1,15 +1,27 @@
 open Parse
 module Tc = Typecheck
 
+exception NotImplemented
+exception UnboundVariable of string
 exception ExpectedArrow of Ast.ty 
 exception TypeInWrongPlace of Ast.ty
 exception MultInWrongPlace of Ast.mult
 
-let rec mult_to_mult = function
+let index_of y xs = 
+  let rec index_of' y i = function
+  | []      -> raise Not_found 
+  | (x::xs) -> if x = y then i else index_of' y (i + 1) xs
+  in
+  index_of' y 0 xs
+
+let rec convert_mult dbmap = function
 | Ast.One -> Tc.One
 | Ast.Unr -> Tc.Unr
-| Ast.MTimes (a, b) -> Tc.MTimes (mult_to_mult a, mult_to_mult b)
-| Ast.MVar a -> Tc.MVar a
+| Ast.MTimes (a, b) -> Tc.MTimes (convert_mult dbmap a, convert_mult dbmap b)
+| Ast.MVar name -> 
+  try 
+    Tc.MVar (index_of name dbmap)
+with Not_found -> raise (UnboundVariable name)
 
 let tname_to_ty = function
 | "Int" -> Tc.BaseT Tc.IntT 
@@ -17,36 +29,37 @@ let tname_to_ty = function
 | "Char" -> Tc.BaseT Tc.CharT 
 | x -> Tc.DataTy x 
 
-let rec ty_to_ty = function
+let rec convert_ty dbmap = function
 | Ast.TName name -> tname_to_ty name 
-| Ast.TVar name -> Tc.TVar name 
-| Ast.Arr (m, s, t) -> Tc.Arr (mult_to_mult m, ty_to_ty s, ty_to_ty t) 
-| Ast.Inst (s, t) -> Tc.Inst (ty_to_ty s, ty_to_ty t) 
-| Ast.InstM (t, m) -> Tc.InstM (ty_to_ty t, mult_to_mult m) 
-| Ast.Forall (x, t) -> Tc.Forall (x, ty_to_ty t) 
-| Ast.ForallM (x, t) -> Tc.ForallM (x, ty_to_ty t) 
+| Ast.TVar name -> (
+  try 
+    Tc.TVar (index_of name dbmap)
+  with Not_found -> raise (UnboundVariable name)
+  )
 
-let arr_get_mult = function
-| Ast.Arr (m, _, _) -> mult_to_mult m
-| Ast.Forall _ -> Unr 
-| Ast.ForallM _ -> Unr 
-| t -> raise (ExpectedArrow t)
+| Ast.Arr (mult, in_ty, out_ty) -> 
+  Tc.Arr ( convert_mult dbmap mult, 
+           convert_ty dbmap in_ty, 
+           convert_ty dbmap out_ty 
+         ) 
 
-let arr_get_rhs = function
-| Ast.Arr (_, _, t) -> t
-| Ast.Forall (_, t) -> t
-| Ast.ForallM (_, t) -> t 
-| t -> raise (ExpectedArrow t)
+| Ast.Inst (to_inst, with_ty) -> 
+  Tc.Inst ( convert_ty dbmap to_inst, 
+            convert_ty dbmap with_ty
+          ) 
 
-let rec name_list_to_lam check_expr ty = function
-| [] -> check_expr 
-| x::xs -> Tc.Lam (x, name_list_to_lam check_expr (arr_get_rhs ty) xs)
+| Ast.InstM (to_inst, with_mult) -> 
+  Tc.InstM ( convert_ty dbmap to_inst, 
+             convert_mult dbmap with_mult
+           ) 
 
-let rec name_list_to_lam_unr check_expr = function
-| [] -> check_expr 
-| x::xs -> Tc.Lam (x, name_list_to_lam_unr check_expr xs)
+| Ast.Forall (name, ty) -> 
+  Tc.Forall (convert_ty (name::dbmap) ty) 
 
-let binop_to_binop = function
+| Ast.ForallM (name, ty) -> 
+  Tc.ForallM (convert_ty (name::dbmap) ty) 
+
+let convert_binop = function
 | Ast.Leq -> Tc.Leq
 | Ast.Geq -> Tc.Leq
 | Ast.Neq -> Tc.Neq
@@ -60,50 +73,100 @@ let binop_to_binop = function
 | Ast.Plus -> Tc.Plus
 | Ast.Minus -> Tc.Minus
 
-let unop_to_unop = function
+let convert_unop = function
 | Ast.Not -> Tc.Not
 | Ast.Neg -> Tc.Neg
 
-let rec check_expr_to_check_expr = function
-| Ast.Lam (name, check_expr) -> Tc.Lam (name, check_expr_to_check_expr check_expr)  
-| Ast.Infer infer_expr -> Tc.Infer (infer_expr_to_infer_expr infer_expr)
-and infer_expr_to_infer_expr = function
-| Ast.Var name -> 
-  Tc.Var name
+let rec convert_check_expr dbmap = function
+| Ast.Lam (name, cexpr) -> Tc.Lam (convert_check_expr (name::dbmap) cexpr)  
+| Ast.Infer iexpr       -> Tc.Infer (convert_infer_expr dbmap iexpr)
+
+and convert_infer_expr dbmap = function
+| Ast.Var name -> (
+  try 
+    Tc.DbIndex (index_of name dbmap)
+  with Not_found -> Tc.Global name
+  )
 | Ast.Binop binop -> 
-  Tc.Binop (binop_to_binop binop)
+  Tc.Binop (convert_binop binop)
+
 | Ast.Unop unop -> 
-  Tc.Unop (unop_to_unop unop)
-| Ast.Let (name, mult, ty, check_expr, infer_expr) -> 
-  Tc.Let (name, mult_to_mult mult, ty_to_ty ty, check_expr_to_check_expr check_expr, infer_expr_to_infer_expr infer_expr)
-| Ast.App (infer_expr, Ast.Infer (Ast.Type ty)) ->
-  Tc.TApp (infer_expr_to_infer_expr infer_expr, ty_to_ty ty)
-| Ast.App (infer_expr, Ast.Infer (Ast.Mult mult)) ->
-  Tc.MApp (infer_expr_to_infer_expr infer_expr, mult_to_mult mult)
-| Ast.App (infer_expr, check_expr) ->
-  Tc.App (infer_expr_to_infer_expr infer_expr, check_expr_to_check_expr check_expr)
+  Tc.Unop (convert_unop unop)
+
+| Ast.Let (name, mult, ty, cexpr, iexpr) -> 
+  Tc.Let ( convert_mult [] mult, 
+           convert_ty [] ty, 
+           convert_check_expr (name::dbmap) cexpr, 
+           convert_infer_expr (name::dbmap) iexpr
+         )
+
+| Ast.App (iexpr, Ast.Infer (Ast.Type ty)) ->
+  Tc.TApp (convert_infer_expr dbmap iexpr, convert_ty dbmap ty)
+
+| Ast.App (iexpr, Ast.Infer (Ast.Mult mult)) ->
+  Tc.MApp (convert_infer_expr dbmap iexpr, convert_mult dbmap mult)
+
+| Ast.App (iexpr, cexpr) ->
+  Tc.App (convert_infer_expr dbmap iexpr, convert_check_expr dbmap cexpr)
+
 | Ast.Type ty -> raise (TypeInWrongPlace ty)
+
 | Ast.Mult mult -> raise (MultInWrongPlace mult)
+
 | Ast.Construction name -> Tc.Construction name
-| Ast.Case (infer_expr, case_alt_list) -> Tc.Case (infer_expr_to_infer_expr infer_expr, List.map case_alt_to_case_alt case_alt_list)
-| Ast.Ann (check_expr, ty) -> Tc.Ann (check_expr_to_check_expr check_expr, ty_to_ty ty)
-| Ast.If (infer_expr, infer_expr_a, infer_expr_b) -> 
-  Tc.If (infer_expr_to_infer_expr infer_expr, infer_expr_to_infer_expr infer_expr_a, infer_expr_to_infer_expr infer_expr_b) 
+
+| Ast.Case (iexpr, ca_list) -> 
+  Tc.Case ( convert_infer_expr dbmap iexpr, 
+            List.map (convert_case_alt dbmap) ca_list
+          )
+
+| Ast.Ann (cexpr, ty) -> 
+  Tc.Ann (convert_check_expr dbmap cexpr, convert_ty [] ty)
+
+| Ast.If (iexpr, iexpr_a, iexpr_b) -> 
+  Tc.If ( convert_infer_expr dbmap iexpr, 
+          convert_infer_expr dbmap iexpr_a, 
+          convert_infer_expr dbmap iexpr_b
+        ) 
+
 | Ast.Int i -> Tc.Int i
+
 | Ast.Char c -> Tc.Char c
+
 | Ast.Bool b -> Tc.Bool b
-and case_alt_to_case_alt = function
-| Ast.Destructor (name, name_list, infer_expr) -> Tc.Destructor (name, name_list, infer_expr_to_infer_expr infer_expr) 
-| Ast.Wildcard (infer_expr) -> Tc.Wildcard (infer_expr_to_infer_expr infer_expr) 
 
-let data_param_to_data_param = function
-| Ast.MultParam name -> Tc.MultParam name
-| Ast.TypeParam name -> Tc.TypeParam name
+and convert_case_alt dbmap = function
+| Ast.Destructor (name, name_list, iexpr) -> 
+  Tc.Destructor ( name, 
+                  List.length name_list, 
+                  convert_infer_expr (name_list @ dbmap) iexpr
+                ) 
 
-let cons_def_to_cons_def (Ast.Cons (name, ty)) = Tc.Cons (name, ty_to_ty ty)
+| Ast.Wildcard (iexpr) -> 
+  Tc.Wildcard (convert_infer_expr dbmap iexpr) 
+
+let rec name_list_to_lam dbmap cexpr = function
+| [] -> convert_check_expr dbmap cexpr 
+| x::xs -> Tc.Lam (name_list_to_lam (x::dbmap) cexpr xs)
+
+let convert_data_param = function
+| Ast.MultParam _ -> Tc.MultParam
+| Ast.TypeParam _ -> Tc.TypeParam
+
+let data_param_name = function
+| Ast.MultParam name -> name
+| Ast.TypeParam name -> name 
+
+let convert_cons_def dbmap (Ast.Cons (name, ty))
+  = Tc.Cons (name, convert_ty dbmap ty) 
 
 let convert_def = function
-  | Ast.LetDef (name, name_list, ty, check_expr) -> 
-    Tc.LetDef (name, ty_to_ty ty, name_list_to_lam (check_expr_to_check_expr check_expr) ty name_list)
-  | Ast.DataDef (name, data_param_list, cons_def_list) -> Tc.DataDef (name, List.map data_param_to_data_param data_param_list, List.map cons_def_to_cons_def cons_def_list)
+  | Ast.LetDef (name, args, ty, cexpr) -> 
+    Tc.LetDef (name, convert_ty [] ty, name_list_to_lam [] cexpr args)
+  | Ast.DataDef (name, dp_list, cd_list) -> 
+    Tc.DataDef ( name, 
+                List.map convert_data_param dp_list,
+                let dbmap = List.map data_param_name dp_list in
+                List.map (convert_cons_def dbmap) cd_list
+               ) 
 let convert = List.map convert_def
