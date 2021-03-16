@@ -1,4 +1,3 @@
-(* open Monad *)
 module StringMap = Map.Make (String)
 
 type mult 
@@ -41,7 +40,7 @@ and infer_expr
   | Case of infer_expr * case_alt list
   | If of infer_expr * infer_expr * infer_expr
   | Ann of check_expr * ty
-  | Lit of int
+  | Int of int
   | Char of char
   | Bool of bool
 and case_alt 
@@ -239,7 +238,7 @@ and infer env constr = function
   let all_same = List.for_all (fun t -> t = rhs_ty) rhs_tys in (* TODO: α equiv *)
   cond (all_same) (CaseResultMismatch rhs_ty);
   rhs_ty, add_usage u_env u_env_rhs, constr 
-| Lit _ -> BaseT IntT, [], constr
+| Int _ -> BaseT IntT, [], constr
 | Char _ -> BaseT CharT, [], constr
 | Bool _ -> BaseT BoolT, [], constr
 

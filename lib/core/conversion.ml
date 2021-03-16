@@ -89,7 +89,7 @@ and infer_expr_to_infer_expr = function
 | Ast.Ann (check_expr, ty) -> Tc.Ann (check_expr_to_check_expr check_expr, ty_to_ty ty)
 | Ast.If (infer_expr, infer_expr_a, infer_expr_b) -> 
   Tc.If (infer_expr_to_infer_expr infer_expr, infer_expr_to_infer_expr infer_expr_a, infer_expr_to_infer_expr infer_expr_b) 
-| Ast.Lit i -> Tc.Lit i
+| Ast.Int i -> Tc.Int i
 | Ast.Char c -> Tc.Char c
 | Ast.Bool b -> Tc.Bool b
 and case_alt_to_case_alt = function

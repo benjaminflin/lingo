@@ -92,7 +92,7 @@ atomic_term:
 | UNIT                          { Construction("unit") } 
 | LID                           { Var($1) }
 | UID                           { Construction($1) }
-| LITERAL                       { Lit($1) }
+| LITERAL                       { Int($1) }
 | BOOL                          { Bool($1) }
 | CHAR                          { Char($1) }
 | FORALL atomic_ty              { Type($2) } 
