@@ -49,7 +49,7 @@ data_param:
 | FORALLM LID   { MultParam($2) }
 
 cons_list:
-| cons          { [$1] }
+|                { [] }
 | cons cons_list { $1::$2 }
 
 cons:
@@ -137,7 +137,7 @@ mapp_ty:
 | app_ty { $1 }
 
 app_ty:
-| atomic_ty app_ty    { Inst($1, $2) }
+| app_ty atomic_ty    { Inst($1, $2) }
 | atomic_ty           { $1 }
 
 atomic_ty:
