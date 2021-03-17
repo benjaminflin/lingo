@@ -2,8 +2,8 @@ let src1 = "main : () = ();"
 
 let src2 = "
 data Foo a #p where
-  Foo1 : a -* Foo;
-  Foo2 : a -p> Foo;
+  Foo1 : a -* Foo a #p;
+  Foo2 : a -p> Foo a #p;
 
 foo1 : Int -* Foo Int #Unr = \\x. Foo1 @Int #Unr x;
 foo1 : Char -* Foo Char #One = \\x. Foo1 @Char #One x;

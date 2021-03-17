@@ -94,6 +94,9 @@ exception ExpectedForallM of ty
 exception TypeMismatch of ty * ty
 exception VarNotFound of global
 exception UnknownConstructor of global
+exception ArgumentLengthMismatch of num_abstr * num_abstr
+exception CaseResultMismatch of ty
+
 
 module KindChecker = struct 
 
@@ -152,8 +155,7 @@ module KindChecker = struct
     let s1 = unify_kind k1 k3 in
     let s2 = unify_kind (apply_subst s1 k2) (apply_subst s1 k4) in
     compose_subst s2 s1 
-  | k1, k2 -> raise (UnificationError (k1, k2))
-
+  | k1, k2 -> if k1 = k2 then IntMap.empty else raise (UnificationError (k1, k2))
 
   let rec infer_kind env i = function
   | BaseT _ -> KType, IntMap.empty, i
@@ -235,8 +237,17 @@ let rec lookup_uenv i = function
 | [] -> Unr 
 
 let lookup_constructor name { data_env; _ } =
-  let cd_list = List.concat_map (fun (_,_,cd_list) -> cd_list) data_env in 
-  let cd_list = List.map (fun (Cons (n,t)) -> (n,t)) cd_list in
+  let rec add_abs c = function
+  | TypeParam::xs -> Forall (add_abs c xs) 
+  | MultParam::xs -> ForallM (add_abs c xs) 
+  | [] -> c
+  in
+  let cd_list = 
+    List.concat_map (
+      fun (_,dp_list,cd_list) -> 
+        List.map (fun (Cons (n, t)) -> (n, add_abs t dp_list)) cd_list
+    ) data_env 
+  in 
   try List.assoc name cd_list with _ -> raise (UnknownConstructor name)
   
 let rec dec_uenv = function
@@ -380,7 +391,60 @@ and infer env constr = function
   let uenv, constr = check env ty constr cexpr in
   ty, uenv, constr 
 
-(* | Case (iexpr, calts) ->  *)
+| Case (iexpr, calts) -> 
+  let ty_scrut, uenv, constr = infer env constr iexpr in
+  let infer_calt = function
+    | Destructor (name, len, rhs) -> (
+      let rec cons_mults = function
+      | Arr (m, _, to_ty) -> m :: cons_mults to_ty 
+      | Forall (ty) -> cons_mults ty
+      | ForallM (ty) -> cons_mults ty
+      | _ -> []
+      in
+      let rec cons_mult_intros = function
+      | Forall ty -> cons_mult_intros ty
+      | ForallM ty -> 1 + (cons_mult_intros ty)
+      | _ -> 0
+      in
+      let rec cons_types = function
+      | Arr (_, from_ty, to_ty) -> from_ty :: cons_types to_ty 
+      | Forall ty -> cons_types ty
+      | ForallM ty -> cons_types ty
+      | _ -> []
+      in
+      let rec case_scrut_mults = function
+      | InstM (to_inst, mult) -> mult :: case_scrut_mults to_inst
+      | Inst (to_inst, _) -> case_scrut_mults to_inst
+      | _ -> []
+      in
+      let range n = List.init n (fun x -> x + 1)
+      in
+      let cons_ty     = lookup_constructor name env in         
+      let cons_mults  = cons_mults cons_ty in 
+      let scrut_mults = case_scrut_mults ty_scrut in 
+      let mult_intros = cons_mult_intros cons_ty in
+      let types       = cons_types cons_ty in
+      let ty, uenv, constr = infer ({ env with local_env = types @ env.local_env }) constr rhs in
+      let gen_constraint (idx, expected_mult) =
+        let actual_mult = lookup_uenv idx uenv in
+        let substs = List.combine (range mult_intros) scrut_mults in
+        LE (actual_mult, subst_mult_list_mult substs expected_mult) 
+      in
+      let constr' = List.map gen_constraint (List.combine (range len) cons_mults) in
+      let uenv = List.fold_left (fun u _ -> dec_uenv u) uenv (range len) in
+      cond (len = List.length types) (ArgumentLengthMismatch (len, List.length types));
+      ty, uenv, (constr' @ constr)
+    ) 
+    | Wildcard rhs -> infer env constr rhs
+  in 
+  let rhs_res = List.map infer_calt calts in
+  let constr = List.concat (List.map (fun (_, _, c) -> c) rhs_res) in
+  let uenv_rhs = List.concat (List.map (fun (_, u, _) -> u) rhs_res) in
+  let rhs_tys = List.map (fun (t, _, _) -> t) rhs_res in
+  let rhs_ty, _, _ = List.hd rhs_res in
+  let all_same = List.for_all (fun t -> t = rhs_ty) rhs_tys in
+  cond (all_same) (CaseResultMismatch rhs_ty);
+  rhs_ty, add_usage uenv uenv_rhs, constr
 
 | Int (_) -> BaseT IntT, [], constr
 
@@ -388,14 +452,12 @@ and infer env constr = function
 
 | Bool (_) -> BaseT BoolT, [], constr
 
-| _ -> raise NotImplemented
-
 
 let check_def env = function
 | LetDef (_, ty, cexpr) -> 
   let _ = KindChecker.infer_kind (env_to_kenv env) 0 ty in
   ignore (check env ty [] cexpr)
-| _ -> raise NotImplemented
+| _ -> () 
 
 let check_prog prog = 
   let data_env = extract_data_env prog in

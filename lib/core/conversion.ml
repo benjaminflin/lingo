@@ -166,7 +166,7 @@ let convert_def = function
   | Ast.DataDef (name, dp_list, cd_list) -> 
     Tc.DataDef ( name, 
                 List.map convert_data_param dp_list,
-                let dbmap = List.map data_param_name dp_list in
+                let dbmap = List.rev (List.map data_param_name dp_list) in
                 List.map (convert_cons_def dbmap) cd_list
                ) 
 let convert = List.map convert_def
