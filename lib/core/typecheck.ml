@@ -1,8 +1,7 @@
 
 (* TODO: 
   - Produce an annotated ast (this should be done after type checking??)
-  - Extend environment with kinds  
-  *)
+*)
 
 type global       = string
 type dbindex      = int
@@ -84,6 +83,17 @@ type env =
 
 type program = def list
 
+type mult_constraint = LE of mult * mult
+
+exception NotImplemented 
+exception UnsatisfiableConstraint of mult * mult 
+exception ExpectedAbs of ty
+exception ExpectedArr of ty
+exception ExpectedForall of ty
+exception ExpectedForallM of ty
+exception TypeMismatch of ty * ty
+exception VarNotFound of global
+exception UnknownConstructor of global
 
 module KindChecker = struct 
 
@@ -190,3 +200,211 @@ module KindChecker = struct
     (KArr (KMult, k)), s, i
 
 end
+
+let cond c e = if c then () else raise e
+
+let rec extract_data_env = function
+| (LetDef _)::defs -> extract_data_env defs
+| (DataDef data_def)::defs -> data_def :: extract_data_env defs
+| [] -> []
+
+let rec extract_global_env = function
+| (LetDef (global, ty, _))::defs -> (global,ty) :: extract_global_env defs
+| (DataDef _)::defs -> extract_global_env defs
+| [] -> []
+
+let rec make_kind_env = function
+| (LetDef _)::defs -> make_kind_env defs 
+| (DataDef ((global, _, _) as data_def))::defs ->
+  let kenv : KindChecker.kenv 
+      = { kind_env = [];
+          data_env =  [data_def];
+        } 
+  in 
+  let kind, _, _ = 
+    KindChecker.infer_kind kenv 0 (DataTy global)
+  in
+  (global, kind) :: make_kind_env defs
+| [] -> []
+
+let env_to_kenv env : KindChecker.kenv = { kind_env = []; data_env = env.data_env; }
+let extend_env ty env = { env with local_env = ty :: env.local_env }
+
+let rec lookup_uenv i = function
+| (j, mult)::env -> if i = j then mult else lookup_uenv i env 
+| [] -> Unr 
+
+let lookup_constructor name { data_env; _ } =
+  let cd_list = List.concat_map (fun (_,_,cd_list) -> cd_list) data_env in 
+  let cd_list = List.map (fun (Cons (n,t)) -> (n,t)) cd_list in
+  try List.assoc name cd_list with _ -> raise (UnknownConstructor name)
+  
+let rec dec_uenv = function
+| (i, mult)::env -> if i = 0 then dec_uenv env else (i-1, mult)::dec_uenv env
+| [] -> []
+
+let scale_usage mult = List.map (fun (x, m) -> (x, MTimes (mult, m)))
+
+let rec union_with f l = function
+| [] -> []  
+| (x, v1)::xs -> 
+  (match List.assoc_opt x l with
+  | Some v2 -> (x, f v1 v2)::(union_with f (List.remove_assoc x l) xs)
+  | None -> (x, v1)::(union_with f l xs)) 
+
+let rec simp = function
+  | MTimes (a, One)  -> a
+  | MTimes (One, a)  -> a
+  | MTimes (Unr, _)  -> Unr
+  | MTimes (_, Unr)  -> Unr
+  | MTimes (a, b)    -> MTimes (simp a, simp b)
+  | a                -> a
+
+let add_usage x y = union_with (fun _ _ -> Unr) x y
+let multiply_usage x y = union_with (fun a b -> MTimes (a, b)) x y
+
+let reduce_constraints cs = 
+  let reduce cs = function
+    | LE (Unr, One) -> raise (UnsatisfiableConstraint (Unr, One))
+    | LE (One, Unr) -> cs
+    | LE (Unr, Unr) -> cs
+    | LE (One, One) -> cs
+    | c             -> (c :: cs)
+  in 
+  List.fold_left reduce [] cs
+
+let rec subst_mult_mult subst mult = match (subst, mult) with
+  | (i, m), (MVar j) -> if i = j then m else (MVar j)
+  | s, MTimes (a, b) -> MTimes (subst_mult_mult s a, subst_mult_mult s b)
+  | _, m -> m 
+
+let rec subst_mult_ty subst ty = match (subst, ty) with
+  | s, Arr (m, t, t') -> Arr (subst_mult_mult s m, subst_mult_ty s t, subst_mult_ty s t')
+  | (i, t), Forall t' -> Forall (subst_mult_ty (i+1, t) t') 
+  | (i, t), ForallM t' -> ForallM (subst_mult_ty (i+1, t) t') 
+  | s, Inst (t, t') -> Inst (subst_mult_ty s t, subst_mult_ty s t')
+  | s, InstM (t, m) -> InstM (subst_mult_ty s t, subst_mult_mult s m)
+  | _, t -> t
+
+let rec subst_ty_ty subst ty = match (subst, ty) with
+  | (i, t), (TVar j) -> if i = j then t else (TVar j)
+  | s, Arr (m, t, t') -> Arr (m, subst_ty_ty s t, subst_ty_ty s t') 
+  | (i, t), Forall t' -> Forall (subst_ty_ty (i+1, t) t')
+  | (i, t), ForallM t' -> ForallM (subst_ty_ty (i+1, t) t')
+  | s, Inst(t, t') -> Inst (subst_ty_ty s t, subst_ty_ty s t')
+  | s, InstM (t, m) -> InstM (subst_ty_ty s t, m) 
+  | _, t -> t
+
+let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
+let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
+let subst_mult_list_mult subst_list mult = List.fold_left (fun m subst -> subst_mult_mult subst m) mult subst_list
+
+let rec check env ty constr = function
+| Lam cexpr -> 
+  (match ty with
+    | Arr (expected_mult, in_ty, out_ty) ->
+      let uenv, constr 
+        = check (extend_env in_ty env) out_ty constr cexpr 
+      in
+      let actual_mult = lookup_uenv 0 uenv in
+      dec_uenv uenv, reduce_constraints @@ (LE (simp expected_mult, simp actual_mult))::constr  
+    | Forall (ty') -> check env ty' constr cexpr
+    | ForallM (ty') -> check env ty' constr cexpr
+    | ty -> raise @@ ExpectedAbs ty
+  )
+
+| Infer iexpr -> 
+  let ty', uenv, constr 
+    = infer env constr iexpr 
+  in
+  cond (ty = ty') (TypeMismatch (ty, ty'));
+  uenv, constr
+and infer env constr = function
+| DbIndex idx -> 
+  List.nth env.local_env idx, [], constr
+
+| Global global -> 
+  (try List.assoc global env.global_env, [], constr with _ -> raise (VarNotFound global))
+
+| Binop binop ->
+  (match binop with
+  | And | Or -> Arr (One, BaseT BoolT, Arr (One, BaseT BoolT, BaseT BoolT)), [], constr
+  | _ -> Arr (One, BaseT IntT, Arr (One, BaseT IntT, BaseT IntT)), [], constr)
+
+| Unop unop -> 
+  (match unop with
+  | Not -> Arr (One, BaseT BoolT, BaseT BoolT), [], constr
+  | Neg -> Arr (One, BaseT IntT, BaseT IntT), [], constr)
+
+| Let (mult, ty, cexpr, iexpr) ->
+  let uenv1, constr 
+    = check (extend_env ty env) ty constr cexpr
+  in
+  let ty', uenv2, constr
+    = infer (extend_env ty env) constr iexpr
+  in
+  ty', add_usage (dec_uenv uenv1) (scale_usage mult (dec_uenv uenv2)), constr
+
+| App (iexpr, cexpr) ->
+  let ty, uenv1, constr = infer env constr iexpr in 
+  (match ty with
+  | Arr (mult, in_ty, out_ty) ->
+    let uenv2, constr = check env in_ty constr cexpr in
+    out_ty, add_usage uenv1 (scale_usage mult uenv2), constr
+  | t -> raise @@ ExpectedArr t)
+
+| MApp (iexpr, mult) ->
+  let lhs_ty, uenv, constr = infer env constr iexpr in
+  (match lhs_ty with
+  | ForallM ty ->  
+    subst_mult_ty (0, mult) ty, uenv, reduce_constraints @@ subst_mult_constr_list (0, mult) constr 
+  | t -> raise @@ ExpectedForallM t)
+
+| TApp (iexpr, ty) ->
+  let lhs_ty, uenv, constr = infer env constr iexpr in
+  (match lhs_ty with
+  | Forall ty' -> subst_ty_ty (0, ty) ty', uenv, constr
+  | t -> raise @@ ExpectedForall t)
+
+| Construction name -> lookup_constructor name env, [], constr    
+
+| If (iexpr_0, iexpr_1, iexpr_2) ->
+  let ty, uenv, constr = infer env constr iexpr_0 in
+  cond (ty = BaseT BoolT) (TypeMismatch (ty, (BaseT BoolT)));
+  let ty1, uenv1, constr = infer env constr iexpr_1 in
+  let ty2, uenv2, constr = infer env constr iexpr_2 in
+  cond (ty1 = ty2) (TypeMismatch (ty1, ty2));
+  ty1, add_usage uenv (multiply_usage uenv1 uenv2), constr
+
+| Ann (cexpr, ty) ->
+  let uenv, constr = check env ty constr cexpr in
+  ty, uenv, constr 
+
+(* | Case (iexpr, calts) ->  *)
+
+| Int (_) -> BaseT IntT, [], constr
+
+| Char (_) -> BaseT CharT, [], constr
+
+| Bool (_) -> BaseT BoolT, [], constr
+
+| _ -> raise NotImplemented
+
+
+let check_def env = function
+| LetDef (_, ty, cexpr) -> 
+  let _ = KindChecker.infer_kind (env_to_kenv env) 0 ty in
+  ignore (check env ty [] cexpr)
+| _ -> raise NotImplemented
+
+let check_prog prog = 
+  let data_env = extract_data_env prog in
+  let global_env = extract_global_env prog in
+  let kind_env = make_kind_env prog in
+  let env = { local_env = []; 
+              global_env = global_env; 
+              data_env = data_env;
+              kind_env = kind_env; 
+            } in
+  List.iter (check_def env) prog 
+
