@@ -97,6 +97,26 @@ exception UnknownConstructor of global
 exception ArgumentLengthMismatch of num_abstr * num_abstr
 exception CaseResultMismatch of ty
 
+let rec string_of_mult = function 
+| One -> "One"
+| Unr -> "Unr"
+| MTimes (a, b) -> string_of_mult a ^ "*" ^ string_of_mult b
+| MVar a -> string_of_int a
+
+let rec string_of_ty = function
+| BaseT (IntT) -> "Int" 
+| BaseT (BoolT) ->"Bool" 
+| BaseT (CharT) -> "Char" 
+| DataTy ty -> ty   
+| TVar t -> string_of_int t 
+| Arr (m, s, t) -> "(" ^ string_of_ty s ^ " -" ^ string_of_mult m ^ "> " ^ string_of_ty t ^ ")"
+| Inst (s, t) -> "(" ^ string_of_ty s ^ " " ^ string_of_ty t ^ ")"
+| InstM (t, m) -> "(" ^ string_of_ty t ^ " " ^ string_of_mult m ^ ")"
+| Forall (t) -> "@ (" ^ string_of_ty t ^ ")"
+| ForallM (t) -> "# (" ^ string_of_ty t ^ ")"
+
+let string_of_uenv = 
+  List.fold_left (fun s (i, m) -> s ^ string_of_int i ^ ": " ^ string_of_mult m ^ "\n") "" 
 
 module KindChecker = struct 
 
@@ -257,7 +277,7 @@ let rec dec_uenv = function
 let scale_usage mult = List.map (fun (x, m) -> (x, MTimes (mult, m)))
 
 let rec union_with f l = function
-| [] -> []  
+| [] -> l  
 | (x, v1)::xs -> 
   (match List.assoc_opt x l with
   | Some v2 -> (x, f v1 v2)::(union_with f (List.remove_assoc x l) xs)
@@ -309,6 +329,14 @@ let rec subst_ty_ty subst ty = match (subst, ty) with
 let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
 let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
 let subst_mult_list_mult subst_list mult = List.fold_left (fun m subst -> subst_mult_mult subst m) mult subst_list
+let subst_ty_list_ty subst_list ty = List.fold_left (fun t subst -> subst_ty_ty subst t) ty subst_list
+
+let rec cons_mults = function
+| Arr (m, _, to_ty) -> m :: cons_mults to_ty 
+| Forall (ty) -> cons_mults ty
+| ForallM (ty) -> cons_mults ty
+| _ -> []
+
 
 let rec check env ty constr = function
 | Lam cexpr -> 
@@ -318,7 +346,7 @@ let rec check env ty constr = function
         = check (extend_env in_ty env) out_ty constr cexpr 
       in
       let actual_mult = lookup_uenv 0 uenv in
-      dec_uenv uenv, reduce_constraints @@ (LE (simp expected_mult, simp actual_mult))::constr  
+      dec_uenv uenv, reduce_constraints @@ (LE (simp actual_mult, simp expected_mult))::constr  
     | Forall (ty') -> check env ty' constr cexpr
     | ForallM (ty') -> check env ty' constr cexpr
     | ty -> raise @@ ExpectedAbs ty
@@ -377,7 +405,12 @@ and infer env constr = function
   | Forall ty' -> subst_ty_ty (0, ty) ty', uenv, constr
   | t -> raise @@ ExpectedForall t)
 
-| Construction name -> lookup_constructor name env, [], constr    
+| Construction name -> 
+  let range n = List.init n (fun x -> x) in
+  let ty = lookup_constructor name env in
+  let mults = List.map (fun _ -> One) (cons_mults ty) in
+  let uenv = List.combine (range @@ List.length mults) mults in
+  ty, uenv, constr
 
 | If (iexpr_0, iexpr_1, iexpr_2) ->
   let ty, uenv, constr = infer env constr iexpr_0 in
@@ -395,39 +428,39 @@ and infer env constr = function
   let ty_scrut, uenv, constr = infer env constr iexpr in
   let infer_calt = function
     | Destructor (name, len, rhs) -> (
-      let rec cons_mults = function
-      | Arr (m, _, to_ty) -> m :: cons_mults to_ty 
-      | Forall (ty) -> cons_mults ty
-      | ForallM (ty) -> cons_mults ty
-      | _ -> []
-      in
-      let rec cons_mult_intros = function
+      
+      (* let rec cons_mult_intros = function
       | Forall ty -> cons_mult_intros ty
       | ForallM ty -> 1 + (cons_mult_intros ty)
       | _ -> 0
-      in
+      in *)
       let rec cons_types = function
       | Arr (_, from_ty, to_ty) -> from_ty :: cons_types to_ty 
       | Forall ty -> cons_types ty
       | ForallM ty -> cons_types ty
       | _ -> []
       in
-      let rec case_scrut_mults = function
-      | InstM (to_inst, mult) -> mult :: case_scrut_mults to_inst
-      | Inst (to_inst, _) -> case_scrut_mults to_inst
+      let rec case_scrut_mults i = function
+      | InstM (to_inst, mult) -> (i, mult) :: case_scrut_mults (i + 1) to_inst
+      | Inst (to_inst, _) -> case_scrut_mults (i + 1) to_inst
       | _ -> []
       in
-      let range n = List.init n (fun x -> x + 1)
+      let rec scrut_types i = function
+      | InstM (to_inst, _) -> scrut_types (i + 1) to_inst
+      | Inst (to_inst, ty) -> (i, ty) :: scrut_types (i + 1) to_inst
+      | _ -> []
+      in
+      let range n = List.init n (fun x -> x)
       in
       let cons_ty     = lookup_constructor name env in         
       let cons_mults  = cons_mults cons_ty in 
-      let scrut_mults = case_scrut_mults ty_scrut in 
-      let mult_intros = cons_mult_intros cons_ty in
-      let types       = cons_types cons_ty in
+      let scrut_mults = case_scrut_mults 0 ty_scrut in 
+      let scrut_types = scrut_types 0 ty_scrut in 
+      let types       = List.map (subst_ty_list_ty scrut_types) (cons_types cons_ty) in
       let ty, uenv, constr = infer ({ env with local_env = types @ env.local_env }) constr rhs in
       let gen_constraint (idx, expected_mult) =
         let actual_mult = lookup_uenv idx uenv in
-        let substs = List.combine (range mult_intros) scrut_mults in
+        let substs = scrut_mults in
         LE (actual_mult, subst_mult_list_mult substs expected_mult) 
       in
       let constr' = List.map gen_constraint (List.combine (range len) cons_mults) in

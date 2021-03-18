@@ -128,7 +128,7 @@ bterm:
 ty:
 | FORALL LID ty      { Forall($2, $3) }
 | FORALLM LID ty     { ForallM($2, $3) }
-| app_ty arrow ty    { Arr($2, $1, $3) }
+| mapp_ty arrow ty   { Arr($2, $1, $3) }
 | mapp_ty            { $1 }
 
 mapp_ty:
