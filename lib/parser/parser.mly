@@ -106,6 +106,7 @@ appterm:
 
 atomicterm:
 | LPAREN expr RPAREN    { $2 }
+| UNIT                  { Var("unit") }
 | LID                   { Var($1) }
 | UID                   { Construction($1) }
 | LITERAL               { Lit($1) }
