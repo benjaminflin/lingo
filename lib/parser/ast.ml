@@ -35,7 +35,7 @@ and infer_expr
   | Case of infer_expr * case_alt list
   | If of infer_expr * infer_expr * infer_expr
   | Ann of check_expr * ty
-  | Lit of int
+  | Int of int
   | Char of char
   | Bool of bool
 and case_alt 
