@@ -1,46 +1,82 @@
-open Lib
+let src1 = "main : () = ();"
 
-let src1 = "
-data PartyAnimal {a} |p| where
-  Cow     : a -p> PartyAnimal;
-  Giraffe : a -p> PartyAnimal;
-  Hyenas  : a ->  PartyAnimal;
-  Donkies : a ->  PartyAnimal;
-"
-let src2 = "let compose {a b c} |p q| f g x : @a @b @c #p #q (b -q> c) -> (a -p> b) -> a -p*q> c = f (g x);"
+let src2 = "
+data Ordering where
+  LT : Ordering;
+  GT : Ordering;
+  EQ : Ordering; 
 
-let src3 = "let x : Int -> Int = (\\(x : Int) -> x + 1);"
+data Eq a where
+  Eq : (a -> a -> Bool) -> Eq a;
 
-let src4 = "let x : Foo = (/t -> id {t}) {Int};"
+data Ord a where
+  Ord : Eq a -> (a -> a -> Ordering) -> Ord a;
 
-let src5 = "let x : Foo = (|p -> (/t -> id {t} |p|));"
-let src6 = "let x : Int = -6;"
-
-let src7 = "
-  let x : Maybe {Maybe {Int}} |One| = case Just 4 of
-    Just a -> Just a;
-    Nothing -> Just 0;
-  ;"
-
-let src8 = "let a : Char = 'a';"
-
-let src9 = "
-let f : Int = 
-  let foo {a} {b} {c} |p| |q| f g x :
-          @a @b @c #p #q (a -p> b) -> ((a -p> b) ->
-              (b -q> c)) -> a -p*q> c
-          = f g x in
-  foo {Int} {Char} {Int} |One| |Unr|; 
+lessThan t o x y : @a Ord a -> a -> a -> Bool 
+  = case o of
+    Ord e f -> case f x y of 
+      LT -> true; _  -> false;
+    ;
+; 
 "
 
-let src10 = "
-    let f : @a Maybe {a -> a} |Unr| = Just {Int} |Unr| 10;
+let src3 = "
+data NonEmpty where
+data Empty where
+
+data List a b where
+  Nil   : List a Empty;
+  Cons  : a -> List a b -> List a NonEmpty; 
+
+l : List Int Empty = Nil @Int @Empty;
+l2 : List Int NonEmpty = Cons @Int @Empty 0 l; 
+l3 : List Int NonEmpty = Cons @Int @NonEmpty 1 l2; 
+
+head a l
+  : @a List a NonEmpty -> a
+  = case l of
+    Cons x l' -> x;
+;
+
+headWithDefault a b d l 
+  : @a @b a -> List a b -> a
+  = case l of
+    Cons x l' -> x;
+    Nil -> d;
+;
+
+foo : Int = headWithDefault @Int @Empty (-1) l;
+bar : Int = head @Int l2;
 "
+
+let src4 = "
+data Maybe a #p where
+  Just    : a -p> Maybe a #p; 
+  Nothing : Maybe a #p;
+
+foo : Int -* Maybe Int #One  
+    = \\x. Just @Int #One x;
+
+(* Doesn't work yet but should *)
+ 
+foo' m
+  : Maybe Int #Unr -* Int
+  = case m of 
+    Just i -> i;
+  ; 
+
+"
+
+let ast =
+  let lexbuf = Lexing.from_string src4 in
+  Parse.Parser.program Parse.Scanner.tokenize lexbuf
+
+
+let core_ast =
+  Core.Conversion.convert ast
 
 let _ = 
-  print_endline (
-    Prettyprinter.pretty_print (
-      let lexbuf = Lexing.from_string src8
-      in Parse.Parser.defs Parse.Scanner.tokenize lexbuf
-  ))
+  Core.Typecheck.check_prog core_ast
 
+
+let _ = print_string "typechecked successfully\n"
