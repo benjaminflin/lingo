@@ -1,16 +1,22 @@
 # Container Commands
+
 In order to run the docker container, make sure you are in the root directory of the Dockerfile
+Current running on version 20.10.5, build 55c4c88
+
 ```
-docker build --tag plt .
-docker run -it -v `pwd`:/home/lingo -w=/home/lingo plt
+docker build --t lingo .
 ```
-This should take a while to build, but it should allow better llvm support and building across platforms
+
+Then in order to run the tests, run ./test.sh
+
+If you want to alter the tests that are being run in the docker container you can edit the docker-compose.yml
+and add different commands to the command section.
 
 # Build Commands
 
 ```
 dune build
-dune exec src/lingo.exe
+dune exec ./tests/test_all.exe
 ```
 
 TODO:
