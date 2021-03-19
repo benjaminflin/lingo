@@ -6,5 +6,5 @@ services:
         command: >
             bash -c "
               dune build \
-              && dune exec ./src/lingo.exe
+              && dune exec ./tests/test_all.exe
             "
