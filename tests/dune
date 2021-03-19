@@ -1,0 +1,7 @@
+(executable
+ (name test_all)
+ (libraries lib hello_world))
+
+(rule
+ (alias  runtest)
+ (action (run ./test_all.exe)))
