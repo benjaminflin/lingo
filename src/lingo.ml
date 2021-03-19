@@ -1,4 +1,4 @@
-(*
+
 let src = "main : () = printInt 0;"
 
 let ast =
@@ -10,8 +10,8 @@ let core_ast = Core.Conversion.convert ast
 let _ =
   print_string @@ Llvm.string_of_llmodule (Codegen.translate core_ast)
 
-*)
-let src1 = "main : () = ();"
+
+(* let src1 = "main : () = ();"
 
 let src2 = "
 data Ordering where
@@ -92,4 +92,4 @@ let _ =
   Core.Typecheck.check_prog core_ast
 
 
-let _ = print_string "typechecked successfully\n"
+let _ = print_string "typechecked successfully\n" *)

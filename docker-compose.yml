@@ -1,0 +1,10 @@
+services:
+    lingo_testbed:
+        image: lingo
+        volumes:
+            - .:/home/lingo
+        command: >
+            bash -c "
+              dune build \
+              && dune exec ./src/lingo.exe
+            "

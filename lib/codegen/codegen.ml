@@ -20,8 +20,8 @@ let translate core_prog =
   let printi64_func : L.llvalue = 
     L.declare_function "print_int" printi64_t _module in
   let rec convert_core_check_expr = function
-      C.Infer (C.App (C.Var "printInt", body)) -> convert_core_check_expr body
-    | C.Infer (C.Lit i) -> L.const_int i64_t i
+      C.Infer (C.App (C.Global "printInt", body)) -> convert_core_check_expr body
+    | C.Infer (C.Int i) -> L.const_int i64_t i
     | _ -> raise NotImplemented
   in
   
