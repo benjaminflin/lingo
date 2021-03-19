@@ -1,4 +1,4 @@
-open Parse.Ast
+(* open Parse.Ast
 
 let rec concat_with_space : name list -> name = (function
 | [s] -> s
@@ -146,4 +146,4 @@ let pretty_print_def = function
 | Def(n,p,t,e) -> pretty_print_letstmt (n,p,t,e) ^ "\n"
 
 let pretty_print defs 
-  = concat_with "\n" (List.map (pretty_print_def) defs)
+  = concat_with "\n" (List.map (pretty_print_def) defs) *)
