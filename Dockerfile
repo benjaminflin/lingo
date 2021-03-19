@@ -6,19 +6,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -yq update && \
     apt-get -y upgrade && \
     apt-get -yq --no-install-suggests --no-install-recommends install \
-        ocaml \ 
-        menhir \
-        llvm \
-        llvm-dev \
-        m4 \
-        git \
-        aspcud \
-        ca-certificates \
-        python2.7 \
-        pkg-config \
-        cmake \ 
-        opam \ 
-        vim
+    ocaml \ 
+    menhir \
+    llvm \
+    llvm-dev \
+    m4 \
+    git \
+    aspcud \
+    ca-certificates \
+    python2.7 \
+    pkg-config \
+    cmake \ 
+    opam \ 
+    vim
 
 
 # RUN ln -s /usr/bin/lli-10 /usr/bin/lli
@@ -27,9 +27,13 @@ RUN apt-get -yq update && \
 RUN opam init -yq --disable-sandboxing --reinit
 RUN opam install -yq \
     llvm.10.0.0 \
-    ocaml
+    ocaml \
+    dune
 
-WORKDIR /root
+
+WORKDIR /home/lingo
+
+COPY . .
 
 ENTRYPOINT ["opam", "config", "exec", "--"]
 

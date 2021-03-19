@@ -263,10 +263,10 @@ let lookup_constructor name { data_env; _ } =
   | [] -> c
   in
   let cd_list = 
-    List.concat_map (
+    List.concat (List.map (
       fun (_,dp_list,cd_list) -> 
         List.map (fun (Cons (n, t)) -> (n, add_abs t dp_list)) cd_list
-    ) data_env 
+    ) data_env)
   in 
   try List.assoc name cd_list with _ -> raise (UnknownConstructor name)
   
