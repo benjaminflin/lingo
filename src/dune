@@ -1,6 +1,6 @@
 (executable
  (name lingo)
- (libraries lib))
+ (libraries lib llvm))
 
 (rule
  (alias install)
