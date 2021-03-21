@@ -39,6 +39,7 @@ type unop = Not | Neg
 
 type check_expr
   = Lam of check_expr
+  | Case of infer_expr * case_alt list
   | Infer of infer_expr
 and infer_expr 
   = DbIndex of dbindex
@@ -50,7 +51,6 @@ and infer_expr
   | MApp of infer_expr * mult
   | TApp of infer_expr * ty
   | Construction of global
-  | Case of infer_expr * case_alt list
   | If of infer_expr * infer_expr * infer_expr
   | Ann of check_expr * ty
   | Int of int
@@ -336,20 +336,26 @@ type case_scrut_param
   = Mult of mult  
   | Type of ty 
 
-let subst_ty_params subst_list ty = 
+let subst_ty_params subst_list ty offset = 
   let len = List.length subst_list in
   let subst ty = function
-  | (i, Mult mult) -> subst_mult_ty (i - len, mult) ty 
-  | (i, Type ty') -> subst_ty_ty (i - len, ty') ty in
+  | (i, Mult mult) -> subst_mult_ty (i - offset, mult) ty 
+  | (i, Type ty') -> subst_ty_ty (i - offset, ty') ty in
   let range n = List.init n (fun x -> x) in
-  let substs = List.combine (range (List.length subst_list)) (List.rev subst_list) in
+  let substs = List.combine (range len) (List.rev subst_list) in
   List.fold_left subst ty substs 
-let rec scrut_ty_params ty = 
-  let ty_params = function
-  | InstM (to_inst, mult) -> (Mult mult) :: scrut_ty_params to_inst
-  | Inst (to_inst, ty) -> (Type ty) :: scrut_ty_params to_inst
+let ty_params ty = 
+  let rec ty_params' = function
+  | InstM (to_inst, mult) -> (Mult mult) :: ty_params' to_inst
+  | Inst (to_inst, ty) -> (Type ty) :: ty_params' to_inst
   | _ -> [] in
-  List.rev @@ ty_params ty
+  List.rev @@ ty_params' ty
+let rec cons_ty_params = function
+| Arr (_, _, to_ty) -> cons_ty_params to_ty 
+| Forall ty -> cons_ty_params ty
+| ForallM ty -> cons_ty_params ty
+| ty -> ty_params ty   
+
 let scrut_data_name ty =
   let rec data_name = function
   | InstM (to_inst, _) -> data_name to_inst
@@ -377,7 +383,50 @@ let rec check env ty constr = function
     | ForallM (ty') -> check env ty' constr cexpr
     | ty -> raise @@ ExpectedAbs ty
   )
-
+| Case (iexpr, calts) -> 
+  let ty_scrut, uenv, constr = infer env constr iexpr in
+  let infer_calt = function
+    | Destructor (name, len, rhs) -> (
+      let range n = List.init n (fun x -> x) in
+      (* Get type of matched constructor *)
+      let calt_ty         = lookup_constructor name env in         
+      (* Refine type of constructor according to the scrutinee *)
+      let scrut_ty_params = ty_params ty_scrut in 
+      let calt_ty         = 
+        subst_ty_params scrut_ty_params calt_ty (List.length scrut_ty_params) in
+      (* Convert type of constructor into a list of (mult, ty)  *)
+      let calt_params     = cons_params calt_ty in  
+      (* Get refined types according to constructor *)
+      let calt_ty_params  = cons_ty_params calt_ty in  
+      (* Infer type of rhs given the params introduced by the case alt *)
+      let mults       = List.map fst calt_params in
+      let types       = List.map snd calt_params in
+      let actual_ty, uenv, constr = infer ({ env with local_env = types @ env.local_env }) constr rhs in
+      (* Check to make sure that the number of arguments 
+         bound matches the number of arguments given in 
+         the definition of the constructor *)
+      cond (len = List.length types) (ArgumentLengthMismatch (len, List.length types));
+      (* Refine expected type according to constructor (GADT) *)
+      let expected_ty = subst_ty_params calt_ty_params ty 0 in  
+      (* Check equality of rhs to the expected type *)
+      cond (expected_ty = actual_ty) (TypeMismatch (expected_ty, actual_ty));
+      (* Generate multiplicity constraints based on usage env in rhs of case alt *)
+      let gen_constraint (idx, expected_mult) =
+        let actual_mult = lookup_uenv idx uenv in
+        LE (actual_mult, expected_mult) 
+      in
+      let constr' = List.map gen_constraint (List.combine (range len) mults) in
+      (* Remove all bound variables in usage environment *)
+      let uenv = List.fold_left (fun u _ -> dec_uenv u) uenv (range len) in
+      uenv, (constr' @ constr)
+    ) 
+    | Wildcard rhs -> check env ty constr (Infer rhs)
+  in 
+  (* Add up all constraints and usage environments from each case alt *)
+  let rhs_res = List.map infer_calt calts in
+  let constr = List.concat (List.map snd rhs_res) in
+  let uenv_rhs = List.concat (List.map fst rhs_res) in
+  add_usage uenv uenv_rhs, constr
 | Infer iexpr -> 
   let ty', uenv, constr 
     = infer env constr iexpr 
@@ -447,47 +496,7 @@ and infer env constr = function
   let uenv, constr = check env ty constr cexpr in
   ty, uenv, constr 
 
-| Case (iexpr, calts) -> 
-  let ty_scrut, uenv, constr = infer env constr iexpr in
-  let infer_calt = function
-    | Destructor (name, len, rhs) -> (
-      
-      let range n = List.init n (fun x -> x) in
-      (* Get type of matched constructor *)
-      let calt_ty         = lookup_constructor name env in         
-      (* Refine type of constructor according to the scrutinee (GADT) *)
-      let scrut_ty_params = scrut_ty_params ty_scrut in 
-      let calt_ty         = subst_ty_params scrut_ty_params calt_ty in
-      (* Convert type of constructor into a list of (mult, ty)  *)
-      let calt_params     = cons_params calt_ty in  
-      (* Infer type of rhs given the params introduced by the case alt *)
-      let mults       = List.map fst calt_params in
-      let types       = List.map snd calt_params in
-      let ty, uenv, constr = infer ({ env with local_env = types @ env.local_env }) constr rhs in
-      (* Generate multiplicity constraints based on usage env in rhs of case alt *)
-      let gen_constraint (idx, expected_mult) =
-        let actual_mult = lookup_uenv idx uenv in
-        LE (actual_mult, expected_mult) 
-      in
-      let constr' = List.map gen_constraint (List.combine (range len) mults) in
-      (* Remove all bound variables in usage environment *)
-      let uenv = List.fold_left (fun u _ -> dec_uenv u) uenv (range len) in
-      (* Check to make sure that the number of arguments 
-         bound matches the number of arguments given in 
-         the definition of the constructor *)
-      cond (len = List.length types) (ArgumentLengthMismatch (len, List.length types));
-      ty, uenv, (constr' @ constr)
-    ) 
-    | Wildcard rhs -> infer env constr rhs
-  in 
-  let rhs_res = List.map infer_calt calts in
-  let constr = List.concat (List.map (fun (_, _, c) -> c) rhs_res) in
-  let uenv_rhs = List.concat (List.map (fun (_, u, _) -> u) rhs_res) in
-  let rhs_tys = List.map (fun (t, _, _) -> t) rhs_res in
-  let rhs_ty, _, _ = List.hd rhs_res in
-  let all_same = List.for_all (fun t -> t = rhs_ty) rhs_tys in
-  cond (all_same) (CaseResultMismatch rhs_ty);
-  rhs_ty, add_usage uenv uenv_rhs, constr
+
 
 | Int (_) -> BaseT IntT, [], constr
 

@@ -64,13 +64,13 @@ lambda:
 | LPAREN lambda RPAREN                        { $2 } 
 
 check_expr:
-| lambda        { $1 } 
-| infer_expr    { Infer($1) }
+| lambda                                            { $1 } 
+| CASE infer_expr OF case_alts                      { Case($2, $4) }
+| infer_expr                                        { Infer($1) }
 
 infer_expr:
 | IF infer_expr THEN infer_expr ELSE infer_expr     { If($2, $4, $6) } 
 | LPAREN check_expr COLON ty RPAREN                 { Ann($2, $4) }
-| CASE infer_expr OF case_alts                      { Case($2, $4) }
 | NOT infer_expr                                    { App(Unop(Not), Infer($2)) }
 | DASH infer_expr %prec NOT                         { App(Unop(Neg), Infer($2)) }
 | app_term                                          { $1 }

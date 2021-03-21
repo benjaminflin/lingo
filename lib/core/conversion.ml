@@ -79,6 +79,10 @@ let convert_unop = function
 
 let rec convert_check_expr dbmap = function
 | Ast.Lam (name, cexpr) -> Tc.Lam (convert_check_expr (name::dbmap) cexpr)  
+| Ast.Case (iexpr, ca_list) -> 
+  Tc.Case ( convert_infer_expr dbmap iexpr, 
+            List.map (convert_case_alt dbmap) ca_list
+          )
 | Ast.Infer iexpr       -> Tc.Infer (convert_infer_expr dbmap iexpr)
 
 and convert_infer_expr dbmap = function
@@ -115,10 +119,7 @@ and convert_infer_expr dbmap = function
 
 | Ast.Construction name -> Tc.Construction name
 
-| Ast.Case (iexpr, ca_list) -> 
-  Tc.Case ( convert_infer_expr dbmap iexpr, 
-            List.map (convert_case_alt dbmap) ca_list
-          )
+
 
 | Ast.Ann (cexpr, ty) -> 
   Tc.Ann (convert_check_expr dbmap cexpr, convert_ty [] ty)
