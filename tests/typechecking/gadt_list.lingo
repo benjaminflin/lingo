@@ -1,0 +1,26 @@
+data NonEmpty where
+data Empty where
+
+data List a b where
+  Nil   : List a Empty;
+  Cons  : a -> List a b -> List a NonEmpty; 
+
+l : List Int Empty = Nil @Int @Empty;
+l2 : List Int NonEmpty = Cons @Int @Empty 0 l; 
+l3 : List Int NonEmpty = Cons @Int @NonEmpty 1 l2; 
+
+head a l
+  : @a List a NonEmpty -> a
+  = case l of
+    Cons x l' -> x;
+; 
+
+headWithDefault a b d l 
+  : @a @b a -> List a b -> a
+  = case l of
+    Cons x l' -> x;
+    Nil -> d;
+; 
+
+foo : Int = headWithDefault @Int @Empty (-1) l; 
+bar : Int = head @Int l2; 
