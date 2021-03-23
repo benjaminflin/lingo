@@ -1,6 +1,6 @@
 (executable
  (name test_all)
- (libraries lib hello_world))
+ (libraries lib hello_world typechecking))
 
 (rule
  (alias  runtest)

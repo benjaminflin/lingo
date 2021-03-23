@@ -1,0 +1,9 @@
+data Foo a where 
+  Foo1 : Int -> Foo Int;
+  Foo2 : Char -> Foo Char;
+
+extract a f : @a Foo a -> a 
+= case f of
+  Foo1 t -> t;
+  Foo2 c -> c;
+  ;

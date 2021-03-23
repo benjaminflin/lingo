@@ -6,6 +6,7 @@ exception UnboundVariable of string
 exception ExpectedArrow of Ast.ty 
 exception TypeInWrongPlace of Ast.ty
 exception MultInWrongPlace of Ast.mult
+exception ImpredicativeType 
 
 let index_of y xs = 
   let rec index_of' y i = function
@@ -23,41 +24,40 @@ let rec convert_mult dbmap = function
     Tc.MVar (index_of name dbmap)
 with Not_found -> raise (UnboundVariable name)
 
-let tname_to_ty = function
+let tname_to_ty params = function
 | "Int" -> Tc.BaseT Tc.IntT 
 | "Bool" -> Tc.BaseT Tc.BoolT 
 | "Char" -> Tc.BaseT Tc.CharT 
-| x -> Tc.DataTy x 
+| x -> Tc.DataTy (x, params)
 
-let rec convert_ty dbmap = function
-| Ast.TName name -> tname_to_ty name 
-| Ast.TVar name -> (
-  try 
-    Tc.TVar (index_of name dbmap)
-  with Not_found -> raise (UnboundVariable name)
-  )
+let rec convert_ty dbmap ty =
+  let rec convert_ty' dbmap params = function
+  | Ast.TName name -> tname_to_ty params name
+  | Ast.TVar name -> (
+    try 
+      Tc.TVar (index_of name dbmap)
+    with Not_found -> raise (UnboundVariable name)
+    )
 
-| Ast.Arr (mult, in_ty, out_ty) -> 
-  Tc.Arr ( convert_mult dbmap mult, 
-           convert_ty dbmap in_ty, 
-           convert_ty dbmap out_ty 
-         ) 
-
-| Ast.Inst (to_inst, with_ty) -> 
-  Tc.Inst ( convert_ty dbmap to_inst, 
-            convert_ty dbmap with_ty
+  | Ast.Arr (mult, in_ty, out_ty) -> 
+    Tc.Arr ( convert_mult dbmap mult, 
+            convert_ty' dbmap params in_ty, 
+            convert_ty' dbmap params out_ty 
           ) 
 
-| Ast.InstM (to_inst, with_mult) -> 
-  Tc.InstM ( convert_ty dbmap to_inst, 
-             convert_mult dbmap with_mult
-           ) 
+  | Ast.Inst (to_inst, with_ty) -> 
+    convert_ty' dbmap ((Type (convert_ty dbmap with_ty))::params) to_inst
 
-| Ast.Forall (name, ty) -> 
-  Tc.Forall (convert_ty (name::dbmap) ty) 
+  | Ast.InstM (to_inst, with_mult) -> 
+    convert_ty' dbmap ((Mult (convert_mult dbmap with_mult))::params) to_inst
 
-| Ast.ForallM (name, ty) -> 
-  Tc.ForallM (convert_ty (name::dbmap) ty) 
+  | Ast.Forall (name, ty) -> 
+    Tc.Forall (convert_ty' (name::dbmap) params ty) 
+
+  | Ast.ForallM (name, ty) -> 
+    Tc.ForallM (convert_ty' (name::dbmap) params ty) 
+  in
+  convert_ty' dbmap [] ty 
 
 let convert_binop = function
 | Ast.Leq -> Tc.Leq
@@ -158,14 +158,38 @@ let data_param_name = function
 | Ast.MultParam name -> name
 | Ast.TypeParam name -> name 
 
+let rec convert_cons_params dbmap = function
+| Ast.Arr (mult, in_ty, out_ty) -> 
+  (convert_mult dbmap mult, convert_ty dbmap in_ty) :: convert_cons_params dbmap out_ty
+| _ -> [] 
+
+let convert_cons_ty_params dbmap ty = 
+  let rec ty_params' = function
+  | Ast.Inst (to_inst, ty) -> 
+    Tc.Type (convert_ty dbmap ty) :: ty_params' to_inst
+  | Ast.InstM (to_inst, mult) -> 
+    Tc.Mult (convert_mult dbmap mult) :: ty_params' to_inst
+  | Ast.Forall _  -> raise ImpredicativeType
+  | Ast.ForallM _ -> raise ImpredicativeType
+  | _ -> []
+  in
+  let rec ty_params = function
+  | Ast.Arr (_, _, out_ty) -> ty_params out_ty
+  | Forall _  -> raise ImpredicativeType
+  | ForallM _ -> raise ImpredicativeType
+  | ty -> ty_params' ty
+  in
+  List.rev (ty_params ty)
+
+
 let convert_cons_def dbmap (Ast.Cons (name, ty))
-  = Tc.Cons (name, convert_ty dbmap ty) 
+  = (name, convert_cons_params dbmap ty, convert_cons_ty_params dbmap ty) 
 
 let convert_def = function
   | Ast.LetDef (name, args, ty, cexpr) -> 
     Tc.LetDef (name, convert_ty [] ty, name_list_to_lam [] cexpr args)
   | Ast.DataDef (name, dp_list, cd_list) -> 
-    Tc.DataDef ( name, 
+    Tc.DataDef ( name,
                 List.map convert_data_param dp_list,
                 let dbmap = List.rev (List.map data_param_name dp_list) in
                 List.map (convert_cons_def dbmap) cd_list

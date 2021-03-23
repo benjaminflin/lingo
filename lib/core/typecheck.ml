@@ -7,6 +7,7 @@ type global       = string
 type dbindex      = int
 type num_abstr    = int
 type constr_index = int
+type uniq_varname = int
 
 type mult 
   = One 
@@ -17,21 +18,21 @@ type mult
 type kind
   = KType
   | KMult
-  | KUnknown of constr_index 
+  | KUnknown of uniq_varname 
   | KArr of kind * kind
 
 type base_ty = BoolT | CharT | IntT
 
 type ty
   = BaseT of base_ty
-  | DataTy of global
+  | DataTy of global * param list
   | TVar of dbindex
   | Arr of mult * ty * ty
-  | Inst of ty * ty
-  | InstM of ty * mult
   | Forall of ty
   | ForallM of ty
-
+and param 
+  = Mult of mult  
+  | Type of ty
 type binop 
   = Lt | Gt | Leq | Geq | Neq | Eq | Plus | Minus | Divide | Times | And | Or
 
@@ -60,8 +61,7 @@ and case_alt
   = Destructor of global * num_abstr * infer_expr
   | Wildcard of infer_expr
 
-type cons_def
-  = Cons of global * ty 
+type cons_def = global * (mult * ty) list * param list
 
 type data_param
   = MultParam 
@@ -92,11 +92,13 @@ exception ExpectedArr of ty
 exception ExpectedForall of ty
 exception ExpectedForallM of ty
 exception TypeMismatch of ty * ty
+exception MultMismatch of mult * mult
 exception VarNotFound of global
 exception UnknownConstructor of global
 exception ExpectedDataTy of ty
 exception ArgumentLengthMismatch of num_abstr * num_abstr
 exception CaseResultMismatch of ty
+exception ParamMismatch of param * param
 
 let rec string_of_mult = function 
 | One -> "One"
@@ -108,13 +110,15 @@ let rec string_of_ty = function
 | BaseT (IntT) -> "Int" 
 | BaseT (BoolT) ->"Bool" 
 | BaseT (CharT) -> "Char" 
-| DataTy ty -> ty   
+| DataTy (ty, params) -> ty ^ " " ^ List.fold_left (fun s p -> s ^ " " ^ string_of_param p) "" params
 | TVar t -> string_of_int t 
 | Arr (m, s, t) -> "(" ^ string_of_ty s ^ " -" ^ string_of_mult m ^ "> " ^ string_of_ty t ^ ")"
-| Inst (s, t) -> "(" ^ string_of_ty s ^ " " ^ string_of_ty t ^ ")"
-| InstM (t, m) -> "(" ^ string_of_ty t ^ " " ^ string_of_mult m ^ ")"
 | Forall (t) -> "@ (" ^ string_of_ty t ^ ")"
 | ForallM (t) -> "# (" ^ string_of_ty t ^ ")"
+and string_of_param = function
+| Type ty -> string_of_ty ty
+| Mult mult -> string_of_mult mult
+
 
 let string_of_uenv = 
   List.fold_left (fun s (i, m) -> s ^ string_of_int i ^ ": " ^ string_of_mult m ^ "\n") "" 
@@ -181,14 +185,9 @@ module KindChecker = struct
   let rec infer_kind env i = function
   | BaseT _ -> KType, IntMap.empty, i
 
-  | DataTy name -> 
-    let _, dp_list, _ = lookup_data_def name env.data_env in
-    let rec data_param_list_kind = function
-    | (MultParam::xs) -> KArr (KMult, data_param_list_kind xs) 
-    | (TypeParam::xs) -> KArr (KType, data_param_list_kind xs) 
-    | [] -> KType
-    in
-    data_param_list_kind dp_list, IntMap.empty, i
+  | DataTy (_, _) -> 
+    (* TODO: Infer kinds of params from use in each constructor  *)
+    KType, IntMap.empty, i   
 
   | TVar idx -> (
     try 
@@ -201,19 +200,6 @@ module KindChecker = struct
     let k2, s2, i = infer_kind (apply_subst_env s1 env) i to_ty in 
     KArr (KArr (k1, KMult), k2), s2, i
 
-  | Inst (to_inst, with_ty) -> 
-    let k1, s1, i = infer_kind env i to_inst in
-    let k2, s2, i = infer_kind (apply_subst_env s1 env) i with_ty in
-    let v = unify_kind (apply_subst s2 k1) (KArr (k2, KUnknown i)) in
-    let s = compose_subst v (compose_subst s2 s1) in
-    let k = apply_subst v (KUnknown i) in
-    k, s, i + 1
-
-  | InstM (to_inst, _) -> 
-    let k1, s1, i = infer_kind env i to_inst in
-    let v = unify_kind (apply_subst s1 k1) (KArr (KMult, KUnknown i)) in
-    apply_subst v (KUnknown i), compose_subst v s1, i + 1
-
   | Forall ty -> 
     let k, s, i' = infer_kind { env with kind_env = (KUnknown i)::env.kind_env } (i + 1) ty in
     (KArr (apply_subst s (KUnknown i), k)), s, i'
@@ -221,7 +207,9 @@ module KindChecker = struct
   | ForallM ty -> 
     let k, s, i = infer_kind { env with kind_env = KMult::env.kind_env } i ty in
     (KArr (KMult, k)), s, i
-
+  and kind_param env i = function
+  | Type ty -> infer_kind env i ty
+  | Mult _ -> KMult, IntMap.empty, i
 end
 
 let cond c e = if c then () else raise e
@@ -234,20 +222,6 @@ let rec extract_data_env = function
 let rec extract_global_env = function
 | (LetDef (global, ty, _))::defs -> (global,ty) :: extract_global_env defs
 | (DataDef _)::defs -> extract_global_env defs
-| [] -> []
-
-let rec make_kind_env = function
-| (LetDef _)::defs -> make_kind_env defs 
-| (DataDef ((global, _, _) as data_def))::defs ->
-  let kenv : KindChecker.kenv 
-      = { kind_env = [];
-          data_env =  [data_def];
-        } 
-  in 
-  let kind, _, _ = 
-    KindChecker.infer_kind kenv 0 (DataTy global)
-  in
-  (global, kind) :: make_kind_env defs
 | [] -> []
 
 let env_to_kenv env : KindChecker.kenv = { kind_env = []; data_env = env.data_env; }
@@ -263,14 +237,22 @@ let lookup_constructor name { data_env; _ } =
   | MultParam::xs -> ForallM (add_abs c xs) 
   | [] -> c
   in
+  let rec cons_ty' name ty_params = function
+  | ((mult, in_ty)::xs) -> Arr (mult, in_ty, cons_ty' name ty_params xs)
+  | [] -> DataTy (name, ty_params)
+  in
+  let cons_ty name params ty_params = add_abs (cons_ty' name ty_params params)
+  in
   let cd_list = 
     List.concat (List.map (
-      fun (_,dp_list,cd_list) -> 
-        List.map (fun (Cons (n, t)) -> (n, add_abs t dp_list)) cd_list
+      fun (dname,dp_list,cd_list) -> 
+        List.map (fun 
+          (cname, params, ty_params) -> 
+            (cname, cons_ty dname params ty_params dp_list)) cd_list
     ) data_env)
   in 
   try List.assoc name cd_list with _ -> raise (UnknownConstructor name)
-  
+
 let rec dec_uenv = function
 | (i, mult)::env -> if i = 0 then dec_uenv env else (i-1, mult)::dec_uenv env
 | [] -> []
@@ -305,70 +287,95 @@ let reduce_constraints cs =
   in 
   List.fold_left reduce [] cs
 
+let rec shift_mult cutoff amount = function
+| MTimes (a, b) -> MTimes (shift_mult cutoff amount a, shift_mult cutoff amount b)  
+| MVar n -> MVar (if n < cutoff then n else n + amount)
+| m -> m 
+let rec shift_ty cutoff amount = function
+| Arr (mult, in_ty, out_ty) -> 
+  Arr ( shift_mult cutoff amount mult, 
+        shift_ty cutoff amount in_ty,
+        shift_ty cutoff amount out_ty
+      )
+| Forall ty -> Forall (shift_ty (cutoff + 1) amount ty)
+| ForallM ty -> ForallM (shift_ty (cutoff + 1) amount ty)
+| TVar n -> TVar (if n < cutoff then n else n + amount)
+| DataTy (name, params) -> DataTy (name, List.map (shift_param cutoff amount) params) 
+| t -> t 
+and shift_param cutoff amount = function
+| Type ty -> Type (shift_ty cutoff amount ty)
+| Mult mult -> Mult (shift_mult cutoff amount mult)
+
 let rec subst_mult_mult subst mult = match (subst, mult) with
-  | (i, m), (MVar j) -> if i = j then m else (MVar j)
-  | s, MTimes (a, b) -> MTimes (subst_mult_mult s a, subst_mult_mult s b)
-  | _, m -> m 
+| (i, m), MVar j -> if i = j then m else MVar j
+| s, MTimes (a, b) -> MTimes (subst_mult_mult s a, subst_mult_mult s b)
+| _, m -> m 
 
 let rec subst_mult_ty subst ty = match (subst, ty) with
-  | s, Arr (m, t, t') -> Arr (subst_mult_mult s m, subst_mult_ty s t, subst_mult_ty s t')
-  | (i, t), Forall t' -> Forall (subst_mult_ty (i+1, t) t') 
-  | (i, t), ForallM t' -> ForallM (subst_mult_ty (i+1, t) t') 
-  | s, Inst (t, t') -> Inst (subst_mult_ty s t, subst_mult_ty s t')
-  | s, InstM (t, m) -> InstM (subst_mult_ty s t, subst_mult_mult s m)
-  | _, t -> t
+| s, Arr (m, t, t') -> Arr (subst_mult_mult s m, subst_mult_ty s t, subst_mult_ty s t')
+| (i, m), Forall t -> Forall (subst_mult_ty (i+1, shift_mult 0 1 m) t) 
+| (i, m), ForallM t -> ForallM (subst_mult_ty (i+1, shift_mult 0 1 m) t) 
+| s, DataTy (name, params) -> DataTy (name, List.map (subst_mult_param s) params)
+| _, t -> t
+and subst_mult_param s = function
+| Type ty -> Type (subst_mult_ty s ty)
+| Mult mult -> Mult (subst_mult_mult s mult)
 
 let rec subst_ty_ty subst ty = match (subst, ty) with
-  | (i, t), (TVar j) -> if i = j then t else (TVar j)
-  | s, Arr (m, t, t') -> Arr (m, subst_ty_ty s t, subst_ty_ty s t') 
-  | (i, t), Forall t' -> Forall (subst_ty_ty (i+1, t) t')
-  | (i, t), ForallM t' -> ForallM (subst_ty_ty (i+1, t) t')
-  | s, Inst(t, t') -> Inst (subst_ty_ty s t, subst_ty_ty s t')
-  | s, InstM (t, m) -> InstM (subst_ty_ty s t, m) 
-  | _, t -> t
+| (i, t), TVar j -> if i = j then t else TVar j
+| s, Arr (m, t, t') -> Arr (m, subst_ty_ty s t, subst_ty_ty s t') 
+| (i, t), Forall t' -> Forall (subst_ty_ty (i+1, shift_ty 0 1 t) t')
+| (i, t), ForallM t' -> ForallM (subst_ty_ty (i+1, shift_ty 0 1 t) t')
+| s, DataTy (name, params) -> DataTy (name, List.map (subst_ty_param s) params)
+| _, t -> t
+and subst_ty_param s = function
+| Type ty -> Type (subst_ty_ty s ty)
+| m -> m
 
 let subst_mult_constr subst (LE (m, m')) = LE (subst_mult_mult subst m, subst_mult_mult subst m')
 let subst_mult_constr_list subst = List.map (subst_mult_constr subst)
-let subst_mult_list_mult subst_list mult = List.fold_left (fun m subst -> subst_mult_mult subst m) mult subst_list
-let subst_ty_list_ty subst_list ty = List.fold_left (fun t subst -> subst_ty_ty subst t) ty subst_list
+let subst_param_ty (i, p) ty = match p with 
+| Type ty'-> subst_ty_ty (i, ty') ty
+| Mult mult -> subst_mult_ty (i, mult) ty   
+let subst_param_mult (i, p) mult = match p with
+| Mult mult' -> subst_mult_mult (i, mult') mult   
+| _ -> mult 
+let subst_param_list_ty substs ty = 
+  List.fold_left (fun ty s -> subst_param_ty s ty) ty substs
+let subst_param_list_mult substs mult = 
+  List.fold_left (fun mult s -> subst_param_mult s mult) mult substs
 
-type case_scrut_param 
-  = Mult of mult  
-  | Type of ty 
 
-let subst_ty_params subst_list ty offset = 
-  let len = List.length subst_list in
-  let subst ty = function
-  | (i, Mult mult) -> subst_mult_ty (i - offset, mult) ty 
-  | (i, Type ty') -> subst_ty_ty (i - offset, ty') ty in
-  let range n = List.init n (fun x -> x) in
-  let substs = List.combine (range len) (List.rev subst_list) in
-  List.fold_left subst ty substs 
-let ty_params ty = 
-  let rec ty_params' = function
-  | InstM (to_inst, mult) -> (Mult mult) :: ty_params' to_inst
-  | Inst (to_inst, ty) -> (Type ty) :: ty_params' to_inst
-  | _ -> [] in
-  List.rev @@ ty_params' ty
-let rec cons_ty_params = function
-| Arr (_, _, to_ty) -> cons_ty_params to_ty 
-| Forall ty -> cons_ty_params ty
-| ForallM ty -> cons_ty_params ty
-| ty -> ty_params ty   
+let lookup_constructor_def name { data_env; _ } = 
+  let cd_aggregate_list = 
+    List.concat (List.map (
+      fun (_,_,cd_list) -> List.map 
+        (fun (name, params, ty_params) -> name, (params, ty_params)) cd_list
+    ) data_env)
+  in 
+  try List.assoc name cd_aggregate_list with _ -> raise (UnknownConstructor name)
 
-let scrut_data_name ty =
-  let rec data_name = function
-  | InstM (to_inst, _) -> data_name to_inst
-  | Inst (to_inst, _) -> data_name to_inst
-  | DataTy name -> name
-  | _ -> raise @@ ExpectedDataTy ty 
-  in data_name ty 
-let rec cons_params = function
-| Arr (mult, from_ty, to_ty) -> (mult, from_ty) :: cons_params to_ty 
-| Forall ty -> cons_params ty
-| ForallM ty -> cons_params ty
-| _ -> []
-
+let rec unify_left ty ty' = match (ty, ty') with
+| Arr (m, in_ty, out_ty), Arr (m', in_ty', out_ty') ->
+  let s_in = unify_left in_ty in_ty' in
+  let s_out = unify_left out_ty out_ty' in
+  cond (m = m') (MultMismatch (m, m'));
+  union_with (fun t t' -> 
+    cond (t = t') (TypeMismatch (t, t')); t'
+  ) s_in s_out
+| DataTy (name, params), DataTy (name', params') ->
+  cond (name = name') (TypeMismatch (ty, ty'));
+  let unify_param (p, p') = (match (p, p') with
+  | Type t, Type t' -> unify_left t t'
+  | Mult m, Mult m' -> cond (m = m') (MultMismatch (m, m')); [] 
+  | _, _ -> raise @@ ParamMismatch (p, p'))
+  in
+  let unify_params s p = (unify_param p) @ s
+  in
+  List.fold_left unify_params [] (List.combine params params')
+| TVar n, _ -> [n, ty']
+| _, TVar _ -> raise @@ TypeMismatch (ty, ty')
+| _ -> cond (ty = ty') (TypeMismatch (ty, ty')); []
 
 let rec check env ty constr = function
 | Lam cexpr -> 
@@ -388,26 +395,39 @@ let rec check env ty constr = function
   let infer_calt = function
     | Destructor (name, len, rhs) -> (
       let range n = List.init n (fun x -> x) in
-      (* Get type of matched constructor *)
-      let calt_ty         = lookup_constructor name env in         
-      (* Refine type of constructor according to the scrutinee *)
-      let scrut_ty_params = ty_params ty_scrut in 
-      let calt_ty         = 
-        subst_ty_params scrut_ty_params calt_ty (List.length scrut_ty_params) in
-      (* Convert type of constructor into a list of (mult, ty)  *)
-      let calt_params     = cons_params calt_ty in  
-      (* Get refined types according to constructor *)
-      let calt_ty_params  = cons_ty_params calt_ty in  
+      (* Get parameters and type paramaters from constructor *)
+      let calt_params, _ 
+        = lookup_constructor_def name env in         
+      let scrut_ty_params = (match ty_scrut with 
+      | DataTy (_, params) -> params
+      | _ -> raise @@ ExpectedDataTy ty_scrut)
+      in
+      (* Refine type of parameters according to the scrutinee *)
+      let calt_params 
+        = List.map (
+            fun (m, t) -> 
+              let substs = List.combine (range (List.length scrut_ty_params)) (List.rev scrut_ty_params)
+              in
+              subst_param_list_mult substs m, 
+              subst_param_list_ty substs t) calt_params  
+      in
+
       (* Infer type of rhs given the params introduced by the case alt *)
-      let mults       = List.map fst calt_params in
-      let types       = List.map snd calt_params in
-      let actual_ty, uenv, constr = infer ({ env with local_env = types @ env.local_env }) constr rhs in
+      let mults = List.map fst calt_params in
+      let types = List.map snd calt_params in
+      let actual_ty, uenv, constr 
+        = infer ({ env with local_env = types @ env.local_env }) constr rhs 
+      in
       (* Check to make sure that the number of arguments 
          bound matches the number of arguments given in 
          the definition of the constructor *)
       cond (len = List.length types) (ArgumentLengthMismatch (len, List.length types));
-      (* Refine expected type according to constructor (GADT) *)
-      let expected_ty = subst_ty_params calt_ty_params ty 0 in  
+      (* Unify expected type with actual (GADT) *)
+      let substs = unify_left ty actual_ty in  
+      let subst_list_ty_ty s t = List.fold_left (fun t s -> subst_ty_ty s t) t s
+      in
+      let expected_ty 
+        = subst_list_ty_ty substs ty in
       (* Check equality of rhs to the expected type *)
       cond (expected_ty = actual_ty) (TypeMismatch (expected_ty, actual_ty));
       (* Generate multiplicity constraints based on usage env in rhs of case alt *)
@@ -496,8 +516,6 @@ and infer env constr = function
   let uenv, constr = check env ty constr cexpr in
   ty, uenv, constr 
 
-
-
 | Int (_) -> BaseT IntT, [], constr
 
 | Char (_) -> BaseT CharT, [], constr
@@ -514,11 +532,10 @@ let check_def env = function
 let check_prog prog = 
   let data_env = extract_data_env prog in
   let global_env = extract_global_env prog in
-  let kind_env = make_kind_env prog in
   let env = { local_env = []; 
               global_env = global_env; 
               data_env = data_env;
-              kind_env = kind_env; 
+              kind_env = []; 
             } in
   List.iter (check_def env) prog 
-
+ 

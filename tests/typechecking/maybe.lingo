@@ -1,0 +1,12 @@
+data Maybe a #p where
+  Just    : a -p> Maybe a #p; 
+  Nothing : Maybe a #p;
+
+foo : Int -> Maybe Int #One  
+    = \x. Just @Int #One x;
+
+foo' m
+  : Maybe Int #One -> Int
+  = case m of 
+    Just i -> i;
+  ; 
