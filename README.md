@@ -4,7 +4,7 @@ In order to run the docker container, make sure you are in the root directory of
 Current running on version 20.10.5, build 55c4c88
 
 ```
-docker build --t lingo .
+docker build --tag lingo .
 ```
 
 Then in order to run the tests, run ./test.sh

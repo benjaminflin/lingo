@@ -22,6 +22,7 @@ type unop = Not | Neg
 
 type check_expr
   = Lam of name * check_expr
+  | Case of infer_expr * case_alt list
   | Infer of infer_expr
 and infer_expr 
   = Var of name
@@ -32,7 +33,6 @@ and infer_expr
   | Mult of mult
   | App of infer_expr * check_expr
   | Construction of name
-  | Case of infer_expr * case_alt list
   | If of infer_expr * infer_expr * infer_expr
   | Ann of check_expr * ty
   | Int of int
