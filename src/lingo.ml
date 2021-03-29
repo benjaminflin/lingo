@@ -1,17 +1,4 @@
-
-let src = "main : () = printInt 0;"
-
-let ast =
-  let lexbuf = Lexing.from_string src in 
-  Parse.Parser.program Parse.Scanner.tokenize lexbuf 
-
-let core_ast = Core.Conversion.convert ast
-
-let _ =
-  print_string @@ Llvm.string_of_llmodule (Codegen.translate core_ast)
-
-
-(* let src1 = "main : () = ();"
+ 
 
 let src2 = "
 data Ordering where
@@ -27,10 +14,13 @@ data Ord a where
 
 lessThan t o x y : @a Ord a -> a -> a -> Bool 
   = case o of
-    Ord e f -> case f x y of 
-      LT -> true; _  -> false;
-    ;
-; 
+      Ord e f ->  
+        (case f x y of 
+          LT -> true; 
+          _ -> false;
+        : Bool)
+  ; 
+;
 "
 
 let src3 = "
@@ -49,7 +39,7 @@ head a l
   : @a List a NonEmpty -> a
   = case l of
     Cons x l' -> x;
-;
+; 
 
 headWithDefault a b d l 
   : @a @b a -> List a b -> a
@@ -67,18 +57,30 @@ data Maybe a #p where
   Just    : a -p> Maybe a #p; 
   Nothing : Maybe a #p;
 
-foo : Int -* Maybe Int #One  
-    = \\x. Just @Int #One x;
+foo : Int -> Maybe Int #One  
+    = \\x. Just @Int #One x;  
 
-(* Doesn't work yet but should *)
- 
 foo' m
-  : Maybe Int #Unr -* Int
+  : Maybe Int #One -> Int
   = case m of 
     Just i -> i;
   ; 
 
 "
+
+let src5 = "
+data Foo a where 
+  Foo1 : Int -> Foo Int;
+  Foo2 : Char -> Foo Char;
+
+extract a f : @a Foo a -> a 
+= case f of
+  Foo1 t -> t;
+  Foo2 c -> c;
+  ;
+"
+
+
 
 let ast =
   let lexbuf = Lexing.from_string src4 in
@@ -89,7 +91,8 @@ let core_ast =
   Core.Conversion.convert ast
 
 let _ = 
-  Core.Typecheck.check_prog core_ast
+  ignore (Core.Typecheck.check_prog core_ast)
 
 
-let _ = print_string "typechecked successfully\n" *)
+
+let _ = print_string "typechecked successfully\n"

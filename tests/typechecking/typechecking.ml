@@ -24,7 +24,7 @@ let test () =
     let paths = String.split_on_char '/' src_file in
     let src_file = List.nth paths ((List.length paths) - 1) in
     try
-      Core.Typecheck.check_prog prog;
+      ignore (Core.Typecheck.check_prog prog);
       print_endline @@ src_file ^ ": Passing;"
     with 
       exn -> 
