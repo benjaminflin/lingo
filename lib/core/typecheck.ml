@@ -1,4 +1,3 @@
-
 (* TODO: 
   - Produce an annotated ast (this should be done after type checking??)
 *)
