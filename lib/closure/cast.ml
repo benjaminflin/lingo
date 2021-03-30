@@ -10,14 +10,13 @@ type cty
 
 type cexpr
   = CInt of int
-  | CChar of char
-  | CBool of bool
+  | CChar of char 
+  | CBool of bool 
   | CApp of cexpr * cexpr * cty
-  | CSelf 
-  | CClos of cname * cexpr list   
-  | CArg of cindex 
+  | CClos of cname * cexpr list * cty
+  | CArg of cindex * cty 
   | CIf  of cexpr * cexpr * cexpr * cty
-  | CConstruction of cname * cexpr list
+  | CConstruction of cname * cexpr list * cty
   | CCase of ccase_alt list
 and ccase_alt 
   = CDestructor of cname * cexpr * cty
