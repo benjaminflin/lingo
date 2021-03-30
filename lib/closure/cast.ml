@@ -1,21 +1,34 @@
-type dbindex = int
-type name = string
+type cindex = int 
+type cname = string
 
 type cty
-  = IntT
-  | BoolT
+  = CIntT
+  | CBoolT
   | CharT
   | CArr of cty * cty
-  | DataTy of name 
-
-type var 
-  = Global of name
-  | Local of dbindex
+  | CDataTy of cname 
 
 type cexpr
   = CInt of int
   | CChar of char
   | CBool of bool
-  | Clos of name * dbindex list * cexpr * cty
   | CApp of cexpr * cexpr * cty
-  | Var of var * cty
+  | CSelf 
+  | CClos of cname * cexpr list   
+  | CArg of cindex 
+  | CIf  of cexpr * cexpr * cexpr * cty
+  | CConstruction of cname * cexpr list
+  | CCase of ccase_alt list
+and ccase_alt 
+  = CDestructor of cname * cexpr * cty
+  | CWildcard of cexpr * cty
+
+type ccons = cty list
+type cglobaldef = cname * cty list * cexpr * cty
+type cdataty = cname * ccons list
+
+type program = {
+  globals : cglobaldef list;
+  datatys : cdataty list;
+  main : cexpr;
+}
