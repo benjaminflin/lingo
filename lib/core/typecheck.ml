@@ -110,7 +110,7 @@ module Sast = struct
     = Destructor of global * num_abstr * ast * sty  
     | Wildcard   of ast * sty
 
-    type cons_def = global * sty list * sty list
+    type cons_def = global * sty list 
     type data_def = global * num_abstr * cons_def list
 
     type def 
@@ -162,11 +162,24 @@ module Sast = struct
     | Type ty -> [tts cutoff ty]
     | _ -> [] 
     in tts 0 ty
+
   let convert_ty_param = function
   | Type t -> [ty_to_sty t] 
   | _ -> []
-  let convert_cons_def (global, params, ty_params) = global, List.map (fun (_, t) -> ty_to_sty t) params, List.concat @@ List.map convert_ty_param ty_params
-  let convert_data_def (name, params, cd_list) = name, List.length params, List.map convert_cons_def cd_list
+  let convert_cons_def ty_params (global, params, _) =
+    let rec convert_params cutoff params = function
+    | (TypeParam)::xs ->  convert_params (cutoff + 1) params xs
+    | _::xs -> convert_params cutoff (List.map (shift_sty cutoff (-1)) params) xs
+    | [] -> params
+    in
+    let sparams = List.map ty_to_sty (List.map snd params) in
+    global, convert_params 0 sparams ty_params
+  let convert_data_def (name, params, cd_list) = 
+    let rec num_ty_params = function
+    | (TypeParam)::xs -> 1 + num_ty_params xs 
+    | _::xs -> num_ty_params xs
+    | [] -> 0 in
+    name, num_ty_params params, List.map (convert_cons_def params) cd_list
   include S
 end
 
