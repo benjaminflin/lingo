@@ -25,9 +25,11 @@ and ccase_alt
 type ccons = cname * cty list
 type cglobaldef = cname * cty list * cexpr * cty
 type cdataty = cname * ccons list
+type cclosuredef = cname * cty list  
 
 type program = {
   globals : cglobaldef list;
+  closures : cclosuredef list;
   datatys : cdataty list;
   main : cexpr;
 }
@@ -36,6 +38,10 @@ type program = {
 let prog : program = {
   datatys = [
     "List_Int", ["Cons", [CIntT, CDataTy "List_Int"]; "Nothing", [] ] 
+  ],
+  closures = [
+    "f", [IntT];
+    "foldl1", [IntT];
   ]
   globals = [
     "foldl", 
