@@ -69,6 +69,7 @@ CheckFail() {
 #runs them, compares their output against the expectation.
 cd ./reg-tests/
 for i in *.lingo; do
+    error=0
     echo "###### Testing $i " >> $globallog 
     basename=${i%%.*} #this is the file name without the .lingo part
     Run $basename
