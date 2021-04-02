@@ -1,7 +1,3 @@
-(* TODO: 
-  - Produce an annotated ast (this should be done after type checking??)
-*)
-
 type global       = string
 type dbindex      = int
 type num_abstr    = int
@@ -42,7 +38,7 @@ type check_expr
   | Case of infer_expr * case_alt list
   | Infer of infer_expr
 and infer_expr 
-  = DbIndex of dbindex
+  = DbIndex of dbindex 
   | Global of global
   | Binop of binop
   | Unop of unop
@@ -83,6 +79,109 @@ type env =
 type program = def list
 
 type mult_constraint = LE of mult * mult
+
+module Sast = struct 
+  module Syntax = struct
+    type sty = 
+    | BaseT of base_ty
+    | DataSty of global * sty list
+    | TVar of dbindex 
+    | Arr of sty * sty
+    | Forall of sty
+
+    type ast
+    = Lam     of ast * sty * sty
+    | TLam    of ast * sty
+    | Case    of ast * sty * case_alt list
+    | DbIndex of dbindex * sty 
+    | Global  of global * sty 
+    | Binop   of binop * sty
+    | Unop    of unop * sty
+    | Let     of ast * sty * ast * sty 
+    | App     of ast * sty * ast * sty
+    | TApp    of ast * sty
+    | Construction 
+              of global * sty
+    | If      of ast * ast * ast * sty 
+    | Int     of int
+    | Char    of char
+    | Bool    of bool
+    and case_alt 
+    = Destructor of global * num_abstr * ast * sty  
+    | Wildcard   of ast * sty
+
+    type cons_def = global * sty list 
+    type data_def = global * num_abstr * cons_def list
+
+    type def 
+    = LetDef of global * sty * ast
+    | DataDef of data_def
+
+    type program = def list
+  end
+  module S = Syntax
+
+
+  let rec shift_sty cutoff amount = function
+  | S.DataSty (global, stys) -> S.DataSty (global, List.map (shift_sty cutoff amount) stys)
+  | S.TVar n -> S.TVar(if n < cutoff then n else n + amount)
+  | S.Arr (in_sty, out_sty) -> S.Arr (shift_sty cutoff amount in_sty, shift_sty cutoff amount out_sty)
+  | S.Forall ty -> S.Forall (shift_sty (cutoff + 1) amount ty)
+  | t -> t
+  and shift cutoff amount = function
+  | S.Lam (ast, sty1, sty2) -> S.Lam (shift (cutoff + 1) amount ast, shift_sty cutoff amount sty1, shift_sty cutoff amount sty2)
+  | S.Case (ast, sty, calts) -> S.Case (shift cutoff amount ast, shift_sty cutoff amount sty, List.map (shift_case_alt cutoff amount) calts)
+  | S.DbIndex (n, ty) -> S.DbIndex ((if n < cutoff then n else n + amount), (shift_sty cutoff amount ty))
+  | S.Global (name, sty) -> S.Global(name, shift_sty cutoff amount sty)
+  | S.Binop (binop, sty) -> S.Binop (binop, shift_sty cutoff amount sty) 
+  | S.Unop (unop, sty) -> S.Unop (unop, shift_sty cutoff amount sty)
+  | S.Let (in_ast, in_sty, out_ast, out_sty) -> 
+      S.Let (
+              shift (cutoff + 1) amount in_ast, 
+              shift_sty cutoff amount in_sty, 
+              shift (cutoff + 1) amount out_ast,
+              shift_sty (cutoff + 1) amount out_sty
+            )
+  | S.TApp (ast, sty) -> S.TApp(shift cutoff amount ast, shift_sty cutoff amount sty)
+  | S.Construction (name, sty) -> S.Construction (name, shift_sty cutoff amount sty)
+  | S.If(ast1, ast2, ast3, sty) -> S.If(shift cutoff amount ast1, shift cutoff amount ast2, shift cutoff amount ast3, shift_sty cutoff amount sty)
+  | t -> t
+  and shift_case_alt cutoff amount = function
+  | S.Destructor(name, num_abstr, ast, sty) -> S.Destructor(name, num_abstr, shift (cutoff + num_abstr) amount ast, shift_sty (cutoff + num_abstr) amount sty)
+  | S.Wildcard(ast, sty) -> S.Wildcard(shift cutoff amount ast, shift_sty cutoff amount sty)
+
+  let ty_to_sty ty = 
+    let rec tts cutoff = function
+    | BaseT base_ty -> S.BaseT base_ty 
+    | DataTy (name, param_list) -> S.DataSty (name, List.concat @@ List.map (param_to_ty cutoff) param_list)   
+    | TVar dbindex -> S.TVar dbindex
+    | Arr (_, in_ty, out_ty) -> S.Arr (tts cutoff in_ty, tts cutoff out_ty)
+    | Forall ty -> S.Forall (tts (cutoff + 1) ty)
+    | ForallM ty -> shift_sty cutoff (-1) (tts cutoff ty)
+    and param_to_ty cutoff = function
+    | Type ty -> [tts cutoff ty]
+    | _ -> [] 
+    in tts 0 ty
+
+  let convert_ty_param = function
+  | Type t -> [ty_to_sty t] 
+  | _ -> []
+  let convert_cons_def ty_params (global, params, _) =
+    let rec convert_params cutoff params = function
+    | (TypeParam)::xs ->  convert_params (cutoff + 1) params xs
+    | _::xs -> convert_params cutoff (List.map (shift_sty cutoff (-1)) params) xs
+    | [] -> params
+    in
+    let sparams = List.map ty_to_sty (List.map snd params) in
+    global, convert_params 0 sparams ty_params
+  let convert_data_def (name, params, cd_list) = 
+    let rec num_ty_params = function
+    | (TypeParam)::xs -> 1 + num_ty_params xs 
+    | _::xs -> num_ty_params xs
+    | [] -> 0 in
+    name, num_ty_params params, List.map (convert_cons_def params) cd_list
+  include S
+end
 
 exception NotImplemented 
 exception UnsatisfiableConstraint of mult * mult 
@@ -185,7 +284,7 @@ module KindChecker = struct
   | BaseT _ -> KType, IntMap.empty, i
 
   | DataTy (_, _) -> 
-    (* TODO: Infer kinds of params from use in each constructor  *)
+    (* TODO: Infer kinds of params from use in each constructor *)
     KType, IntMap.empty, i   
 
   | TVar idx -> (
@@ -376,21 +475,27 @@ let rec unify_left ty ty' = match (ty, ty') with
 | _, TVar _ -> raise @@ TypeMismatch (ty, ty')
 | _ -> cond (ty = ty') (TypeMismatch (ty, ty')); []
 
+module S = Sast
+
 let rec check env ty constr = function
 | Lam cexpr -> 
   (match ty with
     | Arr (expected_mult, in_ty, out_ty) ->
-      let uenv, constr 
+      let uenv, constr, sexpr
         = check (extend_env in_ty env) out_ty constr cexpr 
       in
       let actual_mult = lookup_uenv 0 uenv in
-      dec_uenv uenv, reduce_constraints @@ (LE (simp actual_mult, simp expected_mult))::constr  
-    | Forall (ty') -> check env ty' constr cexpr
-    | ForallM (ty') -> check env ty' constr cexpr
+      dec_uenv uenv, reduce_constraints @@ (LE (simp actual_mult, simp expected_mult))::constr, S.Lam (sexpr, S.ty_to_sty in_ty, S.ty_to_sty out_ty)   
+    | Forall (ty') -> 
+      let uenv, constr, sexpr = check env ty' constr cexpr in
+      uenv, constr, S.TLam (sexpr, S.ty_to_sty ty)
+    | ForallM (ty') -> 
+      let uenv, constr, sexpr = check env ty' constr cexpr in
+      uenv, constr, S.shift 0 (-1) sexpr
     | ty -> raise @@ ExpectedAbs ty
   )
 | Case (iexpr, calts) -> 
-  let ty_scrut, uenv, constr = infer env constr iexpr in
+  let ty_scrut, uenv, constr, sscrut = infer env constr iexpr in
   let infer_calt = function
     | Destructor (name, len, rhs) -> (
       let range n = List.init n (fun x -> x) in
@@ -414,7 +519,7 @@ let rec check env ty constr = function
       (* Infer type of rhs given the params introduced by the case alt *)
       let mults = List.map fst calt_params in
       let types = List.map snd calt_params in
-      let actual_ty, uenv, constr 
+      let actual_ty, uenv, constr, srhs 
         = infer ({ env with local_env = types @ env.local_env }) constr rhs 
       in
       (* Check to make sure that the number of arguments 
@@ -437,96 +542,114 @@ let rec check env ty constr = function
       let constr' = List.map gen_constraint (List.combine (range len) mults) in
       (* Remove all bound variables in usage environment *)
       let uenv = List.fold_left (fun u _ -> dec_uenv u) uenv (range len) in
-      uenv, (constr' @ constr)
+      uenv, (constr' @ constr), S.Destructor (name, len, srhs, S.ty_to_sty actual_ty)
     ) 
-    | Wildcard rhs -> check env ty constr (Infer rhs)
+    | Wildcard rhs -> 
+      let uenv, constr, srhs = check env ty constr (Infer rhs) in
+      uenv, constr, S.Wildcard (srhs, S.ty_to_sty ty)
   in 
   (* Add up all constraints and usage environments from each case alt *)
   let rhs_res = List.map infer_calt calts in
-  let constr = List.concat (List.map snd rhs_res) in
-  let uenv_rhs = List.concat (List.map fst rhs_res) in
-  add_usage uenv uenv_rhs, constr
+  let constr = List.concat (List.map (fun (_, c, _) -> c) rhs_res) in
+  let uenv_rhs = List.concat (List.map (fun (u,_,_) -> u) rhs_res) in
+  let scalts = List.map (fun (_, _, s) -> s) rhs_res in
+  add_usage uenv uenv_rhs, constr, S.Case (sscrut, S.ty_to_sty ty_scrut, scalts)
 | Infer iexpr -> 
-  let ty', uenv, constr 
+  let ty', uenv, constr, sexpr 
     = infer env constr iexpr 
   in
   cond (ty = ty') (TypeMismatch (ty, ty'));
-  uenv, constr
+  uenv, constr, sexpr
 and infer env constr = function
-| DbIndex idx -> 
-  List.nth env.local_env idx, [(idx, One)], constr
+| DbIndex idx -> let ty = List.nth env.local_env idx in
+  ty, [(idx, One)], constr, S.DbIndex (idx, S.ty_to_sty ty)
 
 | Global global -> 
-  (try List.assoc global env.global_env, [], constr with _ -> raise (VarNotFound global))
+  (
+    try
+      let ty = List.assoc global env.global_env in
+      ty, [], constr, S.Global (global, S.ty_to_sty ty)
+    with _ -> raise (VarNotFound global)
+  )
 
 | Binop binop ->
   (match binop with
-  | And | Or -> Arr (One, BaseT BoolT, Arr (One, BaseT BoolT, BaseT BoolT)), [], constr
-  | _ -> Arr (One, BaseT IntT, Arr (One, BaseT IntT, BaseT IntT)), [], constr)
-
+  | And | Or -> 
+    let ty = Arr (One, BaseT BoolT, Arr (One, BaseT BoolT, BaseT BoolT)) in
+    ty, [], constr, S.Binop (binop, S.ty_to_sty ty)
+  | _ -> 
+    let ty = Arr (One, BaseT IntT, Arr (One, BaseT IntT, BaseT IntT)) in
+    ty, [], constr, S.Binop (binop, S.ty_to_sty ty))
 | Unop unop -> 
   (match unop with
-  | Not -> Arr (One, BaseT BoolT, BaseT BoolT), [], constr
-  | Neg -> Arr (One, BaseT IntT, BaseT IntT), [], constr)
+  | Not -> 
+    let ty = Arr (One, BaseT BoolT, BaseT BoolT) in
+    ty, [], constr, S.Unop (unop, S.ty_to_sty ty)  
+  | Neg -> 
+    let ty = Arr (One, BaseT IntT, BaseT IntT) in
+    ty , [], constr, S.Unop (unop, S.ty_to_sty ty))
 
 | Let (mult, ty, cexpr, iexpr) ->
-  let uenv1, constr 
+  let uenv1, constr, sexpr1
     = check (extend_env ty env) ty constr cexpr
   in
-  let ty', uenv2, constr
+  let ty', uenv2, constr, sexpr2
     = infer (extend_env ty env) constr iexpr
   in
-  ty', add_usage (dec_uenv uenv1) (scale_usage mult (dec_uenv uenv2)), constr
+  ty', add_usage (dec_uenv uenv1) (scale_usage mult (dec_uenv uenv2)), constr, S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
 
 | App (iexpr, cexpr) ->
-  let ty, uenv1, constr = infer env constr iexpr in 
+  let ty, uenv1, constr, sexpr1 = infer env constr iexpr in 
   (match ty with
   | Arr (mult, in_ty, out_ty) ->
-    let uenv2, constr = check env in_ty constr cexpr in
-    out_ty, add_usage uenv1 (scale_usage mult uenv2), constr
+    let uenv2, constr, sexpr2 = check env in_ty constr cexpr in
+    out_ty, add_usage uenv1 (scale_usage mult uenv2), constr, S.App (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty in_ty)
   | t -> raise @@ ExpectedArr t)
 
 | MApp (iexpr, mult) ->
-  let lhs_ty, uenv, constr = infer env constr iexpr in
+  let lhs_ty, uenv, constr, sexpr1 = infer env constr iexpr in
   (match lhs_ty with
   | ForallM ty ->  
-    subst_mult_ty (0, mult) ty, uenv, reduce_constraints @@ subst_mult_constr_list (0, mult) constr 
+    subst_mult_ty (0, mult) ty, uenv, reduce_constraints @@ subst_mult_constr_list (0, mult) constr, sexpr1
   | t -> raise @@ ExpectedForallM t)
 
 | TApp (iexpr, ty) ->
-  let lhs_ty, uenv, constr = infer env constr iexpr in
+  let lhs_ty, uenv, constr, sexpr = infer env constr iexpr in
   (match lhs_ty with
-  | Forall ty' -> subst_ty_ty (0, ty) ty', uenv, constr
+  | Forall ty' -> 
+    let out_ty = subst_ty_ty (0, ty) ty' in
+    out_ty, uenv, constr, S.TApp (sexpr, S.ty_to_sty out_ty)  
   | t -> raise @@ ExpectedForall t)
 
 | Construction name -> 
   let ty = lookup_constructor name env in
-  ty, [], constr
+  ty, [], constr, S.Construction (name, S.ty_to_sty ty)
 
 | If (iexpr_0, iexpr_1, iexpr_2) ->
-  let ty, uenv, constr = infer env constr iexpr_0 in
+  let ty, uenv, constr, sexpr0 = infer env constr iexpr_0 in
   cond (ty = BaseT BoolT) (TypeMismatch (ty, (BaseT BoolT)));
-  let ty1, uenv1, constr = infer env constr iexpr_1 in
-  let ty2, uenv2, constr = infer env constr iexpr_2 in
+  let ty1, uenv1, constr, sexpr1 = infer env constr iexpr_1 in
+  let ty2, uenv2, constr, sexpr2 = infer env constr iexpr_2 in
   cond (ty1 = ty2) (TypeMismatch (ty1, ty2));
-  ty1, add_usage uenv (multiply_usage uenv1 uenv2), constr
+  ty1, add_usage uenv (multiply_usage uenv1 uenv2), constr, S.If (sexpr0, sexpr1, sexpr2, (S.ty_to_sty ty1))
 
 | Ann (cexpr, ty) ->
-  let uenv, constr = check env ty constr cexpr in
-  ty, uenv, constr 
+  let uenv, constr, sexpr = check env ty constr cexpr in
+  ty, uenv, constr, sexpr 
 
-| Int (_) -> BaseT IntT, [], constr
+| Int i -> BaseT IntT, [], constr, S.Int i
 
-| Char (_) -> BaseT CharT, [], constr
+| Char c -> BaseT CharT, [], constr, S.Char c
 
-| Bool (_) -> BaseT BoolT, [], constr
+| Bool b -> BaseT BoolT, [], constr, S.Bool b
 
 
 let check_def env = function
-| LetDef (_, ty, cexpr) -> 
+| LetDef (name, ty, cexpr) -> 
   let _ = KindChecker.infer_kind (env_to_kenv env) 0 ty in
-  ignore (check env ty [] cexpr)
-| _ -> () 
+  let _, _, sexpr = check env ty [] cexpr in
+  S.LetDef (name, S.ty_to_sty ty, sexpr)
+| DataDef dd -> S.DataDef (S.convert_data_def dd)
 
 let check_prog prog = 
   let data_env = extract_data_env prog in
@@ -536,5 +659,5 @@ let check_prog prog =
               data_env = data_env;
               kind_env = []; 
             } in
-  List.iter (check_def env) prog 
+  List.map (check_def env) prog 
  
