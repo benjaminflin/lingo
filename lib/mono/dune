@@ -1,0 +1,3 @@
+(library
+ (name mono)
+ (libraries core))

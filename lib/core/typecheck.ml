@@ -92,14 +92,14 @@ module Sast = struct
     type ast
     = Lam     of ast * sty * sty
     | TLam    of ast * sty
-    | Case    of ast * sty * case_alt list
+    | Case    of ast * sty * case_alt list * sty
     | DbIndex of dbindex * sty 
     | Global  of global * sty 
     | Binop   of binop * sty
     | Unop    of unop * sty
     | Let     of ast * sty * ast * sty 
-    | App     of ast * sty * ast * sty
-    | TApp    of ast * sty
+    | App     of ast * sty * ast * sty * sty 
+    | TApp    of ast * sty * sty
     | Construction 
               of global * sty
     | If      of ast * ast * ast * sty 
@@ -130,7 +130,7 @@ module Sast = struct
   | t -> t
   and shift cutoff amount = function
   | S.Lam (ast, sty1, sty2) -> S.Lam (shift (cutoff + 1) amount ast, shift_sty cutoff amount sty1, shift_sty cutoff amount sty2)
-  | S.Case (ast, sty, calts) -> S.Case (shift cutoff amount ast, shift_sty cutoff amount sty, List.map (shift_case_alt cutoff amount) calts)
+  | S.Case (ast, sty, calts, sty2) -> S.Case (shift cutoff amount ast, shift_sty cutoff amount sty, List.map (shift_case_alt cutoff amount) calts, shift_sty cutoff amount sty2)
   | S.DbIndex (n, ty) -> S.DbIndex ((if n < cutoff then n else n + amount), (shift_sty cutoff amount ty))
   | S.Global (name, sty) -> S.Global(name, shift_sty cutoff amount sty)
   | S.Binop (binop, sty) -> S.Binop (binop, shift_sty cutoff amount sty) 
@@ -142,7 +142,7 @@ module Sast = struct
               shift (cutoff + 1) amount out_ast,
               shift_sty (cutoff + 1) amount out_sty
             )
-  | S.TApp (ast, sty) -> S.TApp(shift cutoff amount ast, shift_sty cutoff amount sty)
+  | S.TApp (ast, app_sty, out_sty) -> S.TApp(shift cutoff amount ast, shift_sty cutoff amount app_sty, shift_sty cutoff amount out_sty)
   | S.Construction (name, sty) -> S.Construction (name, shift_sty cutoff amount sty)
   | S.If(ast1, ast2, ast3, sty) -> S.If(shift cutoff amount ast1, shift cutoff amount ast2, shift cutoff amount ast3, shift_sty cutoff amount sty)
   | t -> t
@@ -553,7 +553,7 @@ let rec check env ty constr = function
   let constr = List.concat (List.map (fun (_, c, _) -> c) rhs_res) in
   let uenv_rhs = List.concat (List.map (fun (u,_,_) -> u) rhs_res) in
   let scalts = List.map (fun (_, _, s) -> s) rhs_res in
-  add_usage uenv uenv_rhs, constr, S.Case (sscrut, S.ty_to_sty ty_scrut, scalts)
+  add_usage uenv uenv_rhs, constr, S.Case (sscrut, S.ty_to_sty ty_scrut, scalts, S.ty_to_sty ty)
 | Infer iexpr -> 
   let ty', uenv, constr, sexpr 
     = infer env constr iexpr 
@@ -603,7 +603,7 @@ and infer env constr = function
   (match ty with
   | Arr (mult, in_ty, out_ty) ->
     let uenv2, constr, sexpr2 = check env in_ty constr cexpr in
-    out_ty, add_usage uenv1 (scale_usage mult uenv2), constr, S.App (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty in_ty)
+    out_ty, add_usage uenv1 (scale_usage mult uenv2), constr, S.App (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty in_ty, S.ty_to_sty out_ty)
   | t -> raise @@ ExpectedArr t)
 
 | MApp (iexpr, mult) ->
@@ -618,7 +618,7 @@ and infer env constr = function
   (match lhs_ty with
   | Forall ty' -> 
     let out_ty = subst_ty_ty (0, ty) ty' in
-    out_ty, uenv, constr, S.TApp (sexpr, S.ty_to_sty out_ty)  
+    out_ty, uenv, constr, S.TApp (sexpr, S.ty_to_sty ty, S.ty_to_sty out_ty)  
   | t -> raise @@ ExpectedForall t)
 
 | Construction name -> 
