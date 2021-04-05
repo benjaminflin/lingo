@@ -13,7 +13,7 @@ let rec convert_sty = function
 | S.BaseT C.IntT -> IntT
 | S.BaseT C.CharT -> CharT
 | S.DataSty (global, _) -> DataTy global
-| S.TVar _ -> Box
+| S.TVar _ -> BoxT
 | Forall sty -> convert_sty sty
 | S.Arr (in_sty, out_sty) -> Arr (convert_sty in_sty, convert_sty out_sty) 
 
@@ -76,8 +76,8 @@ and convert_calt = function
   let ty, expr = convert_sexpr sexpr in
   ty, Wildcard (expr, ty) 
   let rec pick_tys ty1 ty2 = (match ty1, ty2 with
-  | Box, _ -> Box
-  | _, Box -> Box
+  | BoxT, _ -> BoxT
+  | _, BoxT -> BoxT
   | Arr (in_ty, out_ty), Arr (in_ty', out_ty') -> 
     Arr (pick_tys in_ty in_ty', pick_tys out_ty out_ty')
   | _ -> ty1)
@@ -112,13 +112,13 @@ let fix prog =
     (match ty1 with
     | Arr (in_ty, out_ty) -> 
       (match (out_ty, out_ty') with
-      | (Box, _) -> 
+      | (BoxT, _) -> 
         (match (in_ty, in_ty') with
-        | (Box, _) -> out_ty', UnBox ((App (expr1, ty1, MkBox expr2, in_ty, out_ty)), out_ty')
-        | _ -> out_ty', UnBox ((App (expr1, ty1, expr2, in_ty, out_ty)), out_ty'))
+        | (BoxT, _) -> out_ty', Unbox ((App (expr1, ty1, Box expr2, in_ty, out_ty)), out_ty')
+        | _ -> out_ty', Unbox ((App (expr1, ty1, expr2, in_ty, out_ty)), out_ty'))
       | _ -> 
         (match (in_ty, in_ty') with
-        | (Box, _) -> out_ty, (App (expr1, ty1, MkBox expr2, in_ty', out_ty))
+        | (BoxT, _) -> out_ty, (App (expr1, ty1, Box expr2, in_ty', out_ty))
         | _ -> out_ty, (App (expr1, ty1, expr2, in_ty', out_ty))))
     | _ -> raise MonoError
     )

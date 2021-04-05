@@ -11,7 +11,7 @@ type mty =
   | BoolT
   | DataTy of global 
   | TVar of dbindex 
-  | Box
+  | BoxT
   | Arr of mty * mty
 
 type mexpr
@@ -25,8 +25,8 @@ type mexpr
   | App     of mexpr * mty * mexpr * mty * mty
   | Construction 
             of global * mty
-  | MkBox   of mexpr 
-  | UnBox   of mexpr * mty 
+  | Box   of mexpr 
+  | Unbox   of mexpr * mty 
   | If      of mexpr * mexpr * mexpr * mty 
   | Int     of int
   | Char    of char
