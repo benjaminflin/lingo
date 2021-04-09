@@ -20,7 +20,7 @@ type cexpr
   | CArg of cindex * cty 
   | CIf  of cexpr * cexpr * cexpr * cty
   | CConstruction of cname * cexpr list * cty
-  | CCase of cexpr * ccase_alt list * cty
+  | CCase of cexpr * cty * ccase_alt list * cty
 and ccase_alt 
   = CDestructor of cname * cty list * cexpr * cty
   | CWildcard of cexpr * cty
