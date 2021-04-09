@@ -187,13 +187,13 @@ let _translate (prog : C.program) =
       ignore (L.build_store (L.const_int i64_t tag) tag_ptr builder);
       ignore (L.build_store cons_ptr data_ptr builder);
       value_to_set
+    (* | CCase (cscrut, scrut_cty, calts, _out_cty) -> 
 
-    | CCase (cscrut, scrut_cty, calts, _out_cty) -> 
-      let scrut_var = L.build_alloca (ltype_of_type scrut_cty) "scrut" builder in
+      let scrut_var = l.build_alloca (ltype_of_type scrut_cty) "scrut" builder in
       ignore (translate_cexpr scrut_var bb cscrut);
       let default_bb = in 
-      ignore (L.build_switch (scrut_var) bb (List.length (calts)) builder);
-      raise NotImplemented 
+      ignore (l.build_switch (scrut_var) bb (List.length (calts)) builder);
+      raise NotImplemented  *)
     | _ -> raise NotImplemented
 
     (*
