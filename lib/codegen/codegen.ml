@@ -75,12 +75,11 @@ let _translate (prog : C.program) =
     L.declare_function cname fun_t _module
   in
   let cons_ts = 
-    let cons_t (cname, cty_list) = 
+    let cons_t i (cname, cty_list) = 
       let ts = List.map ltype_of_type cty_list in
-      cname, def_struct_t cname ts in
-    List.concat @@ List.map (List.map cons_t <<< snd) prog.datatys
+      cname, (i, def_struct_t cname ts) in
+    List.concat @@ List.map (List.mapi cons_t <<< snd) prog.datatys
   in
-  List.iter (print_endline <<< L.string_of_lltype) (List.map snd cons_ts);
   let _function_ts = List.map create_function_t prog.globals in
   let translate_cexpr fn builder = 
     let rec translate_cexpr value_to_set bb = function
@@ -173,22 +172,28 @@ let _translate (prog : C.program) =
     | CArg (idx, _) -> 
       L.build_store (L.param fn idx) value_to_set builder
     | CConstruction (name, cargs, _) ->
-      let cons_t = List.assoc name cons_ts in
-      let args = List.map (fun t -> L.build_alloca t "carg_aloc" builder) (Array.to_list @@ L.struct_element_types cons_t) in
+      let tag, cons_t = List.assoc name cons_ts in
+      let args = List.map (fun t -> L.build_malloc t "carg_aloc" builder) (Array.to_list @@ L.struct_element_types cons_t) in
       List.iter (fun (arg, carg) -> ignore (translate_cexpr arg bb carg)) @@ List.combine args cargs;  
-      let cons  = L.build_alloca cons_t "cons" builder in
+      let cons  = L.build_malloc cons_t "cons" builder in
       let build_cons (arg, i) = 
         let arg_val = L.build_load arg "carg_aloc_val" builder in
         L.build_store arg_val (L.build_struct_gep cons i "carg" builder) builder
       in
       List.iter (ignore <<< build_cons) (List.combine args (List.init (List.length args) (fun x -> x))); 
-      cons
-    (* | CCase (cscrut, scrut_cty, calts, _out_cty) -> 
-      let scrut_var = L.build_alloca (ltype_of_type  scrut_cty) "scrut" builder in
+      let cons_ptr = L.build_bitcast cons (void_ptr_t) "cons_vptr" builder in
+      let tag_ptr = L.build_struct_gep value_to_set 0 "tag" builder in
+      let data_ptr = L.build_struct_gep value_to_set 1 "data_ptr" builder in
+      ignore (L.build_store (L.const_int i64_t tag) tag_ptr builder);
+      ignore (L.build_store cons_ptr data_ptr builder);
+      value_to_set
+
+    | CCase (cscrut, scrut_cty, calts, _out_cty) -> 
+      let scrut_var = L.build_alloca (ltype_of_type scrut_cty) "scrut" builder in
       ignore (translate_cexpr scrut_var bb cscrut);
       let default_bb = in 
       ignore (L.build_switch (scrut_var) bb (List.length (calts)) builder);
-      raise NotImplemented *)
+      raise NotImplemented 
     | _ -> raise NotImplemented
 
     (*
@@ -199,7 +204,7 @@ let _translate (prog : C.program) =
   let main_t = L.function_type void_t [||] in   
   let main_fn = L.define_function "main" main_t _module in
   let builder = L.builder_at_end context (L.entry_block main_fn) in
-  let rval = L.build_alloca (i64_t) "retval" builder in  
+  let rval = L.build_alloca (adt_t) "retval" builder in  
   ignore (translate_cexpr main_fn builder rval (L.entry_block main_fn) prog.main);
   add_terminal builder L.build_ret_void;
   _module
