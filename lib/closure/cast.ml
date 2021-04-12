@@ -15,6 +15,7 @@ type cexpr
   | CBool of bool 
   | CApp of cexpr * cty * cexpr * cty * cty
   | CClos of cname * cexpr list * cty
+  | CCall of cname * (cexpr * cty) list 
   | Box of cexpr * cty
   | Unbox of cexpr * cty
   | CArg of cindex * cty 
@@ -34,6 +35,7 @@ type program = {
   globals : cglobaldef list;
   closures : cclosuredef list;
   datatys : cdataty list;
+  decls : (cname * (cty list * cty)) list; 
   main : cexpr;
 }
 

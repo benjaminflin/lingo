@@ -1,5 +1,6 @@
 module L = Llvm
 module C = Closure.Cast
+exception CodegenError
 exception NotImplemented
 let (<<<) f g x = f (g x)
 let _translate (prog : C.program) = 
@@ -82,7 +83,7 @@ let _translate (prog : C.program) =
   in
   let _function_ts = List.map create_function_t prog.globals in
   let translate_cexpr fn builder = 
-    let rec translate_cexpr value_to_set bb = function
+    let rec translate_cexpr value_to_set bb (extra_args )  = function
     | C.CInt i -> 
       L.build_store (L.const_int i64_t i) value_to_set builder
     | C.CChar c -> 
@@ -96,19 +97,19 @@ let _translate (prog : C.program) =
 
         let brtrue = L.append_block context "brtrue" fn in
         L.position_at_end brtrue builder; 
-        ignore (translate_cexpr value_to_set brtrue then_expr);
+        ignore (translate_cexpr value_to_set brtrue extra_args then_expr);
         add_terminal builder (L.build_br brend); 
 
         let brfalse = L.append_block context "brfalse" fn in
         L.position_at_end brfalse builder; 
-        ignore (translate_cexpr value_to_set brfalse else_expr);
+        ignore (translate_cexpr value_to_set brfalse extra_args else_expr);
         add_terminal builder (L.build_br brend);
 
         L.move_block_after brfalse brend;
         L.position_at_end bb builder; 
         let branch = 
           let v = L.build_alloca bool_t "ifcond" builder in
-          ignore (translate_cexpr v bb predicate);
+          ignore (translate_cexpr v bb extra_args predicate);
           L.build_cond_br v brtrue brfalse
         in
         add_terminal builder branch;
@@ -116,12 +117,12 @@ let _translate (prog : C.program) =
         value_to_set
     | C.Box (cexpr, cty) ->
       let unbox = L.build_alloca (ltype_of_type cty) "unbox" builder in
-      ignore (translate_cexpr unbox bb cexpr);
+      ignore (translate_cexpr unbox bb extra_args cexpr);
       let box = L.build_bitcast unbox void_ptr_t "box" builder in
       L.build_store box value_to_set builder
     | C.Unbox (cexpr, cty) ->
       let unbox = L.build_alloca void_ptr_t "box" builder in
-      ignore (translate_cexpr unbox bb cexpr);
+      ignore (translate_cexpr unbox bb extra_args cexpr);
       let box = L.build_bitcast unbox (ltype_of_type cty) "unbox" builder in
       L.build_store box value_to_set builder
     | C.CClos (cname, env, _) ->
@@ -133,7 +134,7 @@ let _translate (prog : C.program) =
         let new_value_to_set = 
           L.build_load ( 
           L.build_struct_gep clos (i + 1) "closarg_ptr" builder) "closarg" builder in
-        ignore (translate_cexpr new_value_to_set bb cexpr);
+        ignore (translate_cexpr new_value_to_set bb extra_args cexpr);
       in
       ignore (List.map2 translate_env (List.init (List.length env) (fun x -> x)) env);
       let to_set = L.build_pointercast value_to_set (L.pointer_type @@ L.pointer_type clos_t) "closc" builder in
@@ -164,17 +165,21 @@ let _translate (prog : C.program) =
       )
       in
       let clos = L.build_alloca (ltype_of_type cty1) "clos" builder in
-      ignore (translate_cexpr clos bb cclos);
+      ignore (translate_cexpr clos bb extra_args cclos);
       let arg = L.build_alloca (ltype_of_type cty2) "arg" builder in
-      ignore (translate_cexpr arg bb cexpr2);
+      ignore (translate_cexpr arg bb extra_args cexpr2);
       let ret_val = L.build_call apply_fn ([| clos; arg |]) "ret_val" builder in
       L.build_store ret_val value_to_set builder
-    | CArg (idx, _) -> 
-      L.build_store (L.param fn idx) value_to_set builder
-    | CConstruction (name, cargs, _) ->
+    | C.CArg (idx, _) -> 
+      let len = List.length extra_args in 
+      if idx < len then 
+        L.build_store (List.nth extra_args idx) value_to_set builder
+      else
+        L.build_store (L.param fn (idx - len)) value_to_set builder
+    | C.CConstruction (name, cargs, _) ->
       let tag, cons_t = List.assoc name cons_ts in
       let args = List.map (fun t -> L.build_malloc t "carg_aloc" builder) (Array.to_list @@ L.struct_element_types cons_t) in
-      List.iter (fun (arg, carg) -> ignore (translate_cexpr arg bb carg)) @@ List.combine args cargs;  
+      List.iter (fun (arg, carg) -> ignore (translate_cexpr arg bb extra_args carg)) @@ List.combine args cargs;  
       let cons  = L.build_malloc cons_t "cons" builder in
       let build_cons (arg, i) = 
         let arg_val = L.build_load arg "carg_aloc_val" builder in
@@ -187,25 +192,70 @@ let _translate (prog : C.program) =
       ignore (L.build_store (L.const_int i64_t tag) tag_ptr builder);
       ignore (L.build_store cons_ptr data_ptr builder);
       value_to_set
-    (* | CCase (cscrut, scrut_cty, calts, _out_cty) -> 
-
-      let scrut_var = l.build_alloca (ltype_of_type scrut_cty) "scrut" builder in
-      ignore (translate_cexpr scrut_var bb cscrut);
-      let default_bb = in 
-      ignore (l.build_switch (scrut_var) bb (List.length (calts)) builder);
-      raise NotImplemented  *)
-    | _ -> raise NotImplemented
-
-    (*
-    | CConstruction of cname * cexpr list * cty
-    *)
+    | C.CCase (cscrut, _, calts, _out_cty) -> 
+      let scrut_var = L.build_alloca adt_t "scrut" builder in
+      ignore (translate_cexpr scrut_var bb extra_args cscrut);
+      let scrut_tag_ptr = L.build_struct_gep scrut_var 0 "switch_tag_ptr" builder in
+      let scrut_data = L.build_struct_gep scrut_var 1 "scrut_data" builder in
+      let scrut_tag = L.build_load scrut_tag_ptr "switch_tag" builder in
+      let brend = L.append_block context "case_continue" fn in
+      let first_wc = List.find (fun x ->
+        match x with 
+        | C.CWildcard   _ -> true
+        | C.CDestructor _ -> false
+      ) calts in
+      let destructors = List.filter_map (fun x ->
+        match x with
+        | C.CWildcard _ -> None
+        | C.CDestructor (cname, cty_list, cexpr, _) -> Some (cname, cty_list, cexpr)) calts
+      in
+      let default_bb = L.append_block context "default" fn in
+      L.position_at_end default_bb builder; 
+      let default_expr = (match first_wc with
+        | C.CWildcard (cexpr, _) -> cexpr
+        | _ -> raise CodegenError) in
+      ignore (translate_cexpr value_to_set default_bb extra_args default_expr);
+      ignore (L.build_br brend builder);
+      L.position_at_end bb builder; 
+      let switch = L.build_switch scrut_tag default_bb (List.length calts) builder in
+      let translate_destructor value_to_set case_bb (cname, cty_list, cexpr) = 
+        L.position_at_end case_bb builder;  
+        let cons_tag, cons_t = List.assoc cname cons_ts in
+        let scrut_data_deref = L.build_load scrut_data "scrut_data_deref" builder in   
+        let cons_ptr = L.build_bitcast scrut_data_deref (L.pointer_type cons_t) "cons_cast" builder in
+        let extra_args' = List.init (List.length cty_list) (fun i -> 
+          L.build_load (L.build_struct_gep cons_ptr i "cons_destruct_ptr" builder) "cons_destruct" builder) in
+        L.add_case switch (L.const_int i64_t cons_tag) case_bb;
+        let expr = translate_cexpr value_to_set case_bb (extra_args' @ extra_args) cexpr in
+        ignore (L.build_br brend builder);
+        L.position_at_end bb builder;
+        expr
+      in
+      let case_bbs = List.init (List.length destructors) (fun _ -> L.append_block context "case" fn) in
+      let cases = List.map2 (translate_destructor value_to_set) case_bbs destructors in
+      List.iter ignore cases;
+      L.move_block_after (List.nth case_bbs (List.length case_bbs - 1)) brend;
+      L.position_at_end brend builder;
+      switch 
+    | C.CCall (cname, cexpr_list) ->  
+      let alloc_args = List.map (fun (_, cty) -> L.build_alloca (ltype_of_type cty) "call_arg_ptr" builder) cexpr_list in
+      ignore (List.map2 (fun aloc (expr, _) -> translate_cexpr aloc bb extra_args expr) alloc_args cexpr_list);
+      let args = List.map (fun aloc -> L.build_load aloc "call_arg" builder) alloc_args in
+      let arg_ctys, out_cty  = List.assoc cname prog.decls in
+      let arg_ts = List.map ltype_of_type arg_ctys in
+      let out_t = ltype_of_type out_cty in 
+      let fun_t = L.function_type out_t (Array.of_list arg_ts) in  
+      let fun_decl = L.declare_function cname fun_t _module in
+      let ret = L.build_call fun_decl (Array.of_list args) "call_ret" builder in
+      L.build_store ret value_to_set builder 
+    | _ -> raise CodegenError 
     in translate_cexpr  
   in 
   let main_t = L.function_type void_t [||] in   
   let main_fn = L.define_function "main" main_t _module in
   let builder = L.builder_at_end context (L.entry_block main_fn) in
-  let rval = L.build_alloca (adt_t) "retval" builder in  
-  ignore (translate_cexpr main_fn builder rval (L.entry_block main_fn) prog.main);
+  let rval = L.build_alloca (i64_t) "retval" builder in  
+  ignore (translate_cexpr main_fn builder rval (L.entry_block main_fn) [] prog.main);
   add_terminal builder L.build_ret_void;
   _module
 
