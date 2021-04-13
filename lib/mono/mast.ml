@@ -36,7 +36,7 @@ and case_alt
   | Wildcard   of mexpr * mty
 
 type cons_def = global * mty list 
-type data_def = global * num_abstr * cons_def list
+type data_def = global * cons_def list
 
 
 type program = {

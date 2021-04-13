@@ -142,6 +142,7 @@ let fix prog =
     ty, Wildcard (expr, ty)
   in fix
 
+
 let convert_prog sprog = 
   let initial_sprog = { 
     letdefs = []; 
@@ -155,11 +156,15 @@ let convert_prog sprog =
     else 
       let ty, expr = convert_sexpr sexpr in
       {mprog with letdefs = ((global, ty, expr)) :: mprog.letdefs }
-  | _ -> mprog
+  | S.DataDef (global, _, cd_list) ->
+    let datadef = 
+      global, List.map (fun (name, l) -> name, List.map convert_sty l) cd_list 
+    in
+    {mprog with datadefs = datadef::mprog.datadefs } 
   in
   let prog = List.fold_left to_prog initial_sprog sprog in
   { prog with letdefs = 
     (List.map (fun (n,_,e) -> 
       let ty, e = fix prog e in n,ty,e) prog.letdefs);
-    main = snd @@ fix prog prog.main}
+    main = snd @@ fix prog prog.main }
 
