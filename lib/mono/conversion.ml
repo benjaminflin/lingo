@@ -86,7 +86,7 @@ let fix prog =
   let rec fix = function
   | Lam (expr, in_ty, _) ->
     let out_ty, expr = fix expr in 
-    out_ty, Lam (expr, in_ty, out_ty)
+    Arr (in_ty, out_ty), Lam (expr, in_ty, out_ty)
   | Case (scrut, _, ca_list, _) ->
     let scrut_ty, scrut = fix scrut in 
     let calt_res = List.map fix_calt ca_list in
@@ -114,13 +114,13 @@ let fix prog =
       (match (out_ty, out_ty') with
       | (BoxT, _) -> 
         (match (in_ty, in_ty') with
-        | (BoxT, _) -> out_ty', Unbox ((App (expr1, ty1, Box expr2, in_ty, out_ty)), out_ty')
+        | (BoxT, _) -> out_ty', Unbox ((App (expr1, ty1, Box (expr2, in_ty'), in_ty, out_ty)), out_ty')
         | _ -> out_ty', Unbox ((App (expr1, ty1, expr2, in_ty, out_ty)), out_ty'))
       | _ -> 
         (match (in_ty, in_ty') with
-        | (BoxT, _) -> out_ty, (App (expr1, ty1, Box expr2, in_ty', out_ty))
+        | (BoxT, _) -> out_ty, (App (expr1, ty1, Box (expr2, in_ty'), in_ty', out_ty))
         | _ -> out_ty, (App (expr1, ty1, expr2, in_ty', out_ty))))
-    | _ -> raise MonoError
+    | _ -> raise NotImplemented
     )
   | Construction (global, ty) ->
     ty, Construction (global, ty)

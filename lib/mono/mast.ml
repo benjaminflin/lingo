@@ -25,7 +25,7 @@ type mexpr
   | App     of mexpr * mty * mexpr * mty * mty
   | Construction 
             of global * mty
-  | Box   of mexpr 
+  | Box     of mexpr * mty 
   | Unbox   of mexpr * mty 
   | If      of mexpr * mexpr * mexpr * mty 
   | Int     of int
@@ -37,7 +37,6 @@ and case_alt
 
 type cons_def = global * mty list 
 type data_def = global * cons_def list
-
 
 type program = {
   main : mexpr;

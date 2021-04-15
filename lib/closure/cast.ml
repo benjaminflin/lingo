@@ -1,3 +1,4 @@
+type arglen = int
 type cindex = int 
 type cname = string
 
@@ -6,7 +7,7 @@ type cty
   | CBoolT
   | CharT
   | CDataTy of cname 
-  | CClosT of cname 
+  | CClosT
   | BoxT
 
 type cexpr
@@ -14,7 +15,7 @@ type cexpr
   | CChar of char 
   | CBool of bool 
   | CApp of cexpr * cty * cexpr * cty * cty
-  | CClos of cname * cexpr list * cty
+  | CClos of cname * cexpr list * cty list
   | CCall of cname * (cexpr * cty) list 
   | Box of cexpr * cty
   | Unbox of cexpr * cty
@@ -23,17 +24,16 @@ type cexpr
   | CConstruction of cname * cexpr list * cty
   | CCase of cexpr * cty * ccase_alt list * cty
 and ccase_alt 
-  = CDestructor of cname * cty list * cexpr * cty
+  = CDestructor of cname * arglen * cexpr * cty
   | CWildcard of cexpr * cty
 
 type ccons = cname * cty list
-type cglobaldef = cname * cty list * cexpr * cty
+type cglobaldef = cname * arglen * cexpr * cty
 type cdataty = cname * ccons list
 type cclosuredef = cname * cty list  
 
 type program = {
   globals : cglobaldef list;
-  closures : cclosuredef list;
   datatys : cdataty list;
   decls : (cname * (cty list * cty)) list; 
   main : cexpr;

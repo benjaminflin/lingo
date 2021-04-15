@@ -577,8 +577,11 @@ and infer env constr = function
   | And | Or -> 
     let ty = Arr (One, BaseT BoolT, Arr (One, BaseT BoolT, BaseT BoolT)) in
     ty, [], constr, S.Binop (binop, S.ty_to_sty ty)
-  | _ -> 
+  | Plus | Minus | Times | Divide ->
     let ty = Arr (One, BaseT IntT, Arr (One, BaseT IntT, BaseT IntT)) in
+    ty, [], constr, S.Binop (binop, S.ty_to_sty ty)
+  | _ -> 
+    let ty = Arr (One, BaseT IntT, Arr (One, BaseT IntT, BaseT BoolT)) in
     ty, [], constr, S.Binop (binop, S.ty_to_sty ty))
 | Unop unop -> 
   (match unop with
