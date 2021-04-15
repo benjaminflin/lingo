@@ -56,7 +56,6 @@ let convert_mexpr name (prog : M.program) expr =
     let fv_tys = List.map snd fvs in 
     let global = name, List.length fvs + 1, expr, convert_mty out_mty in
     globals := global::!globals; 
-    print_endline name; 
     CClos (name, args, fv_tys)
   | M.Case (mscrut, scrut_mty, ca_list, out_mty) -> 
     let scrut = convert_mexpr mscrut in
@@ -137,7 +136,13 @@ let convert_mexpr name (prog : M.program) expr =
     CWildcard (expr, convert_mty mty)
   in convert_mexpr expr
 
-let convert_prog ({ main; letdefs; _ } as prog: M.program) = 
-  let expr = convert_mexpr "main" prog main in
+let rec convert_decl = function
+| M.Arr (in_mty, out_mty) -> 
+  let tys, out_ty = convert_decl out_mty in
+  (convert_mty in_mty :: tys), out_ty
+| mty -> [], convert_mty mty
+let convert_prog ({ main; letdefs; decls; _ } as prog: M.program) = 
+  let expr = convert_mexpr "__main__" prog main in
   List.iter (fun (name, _, mexpr) -> ignore (convert_mexpr name prog mexpr)) letdefs;
-  { globals = !globals; main = expr; datatys = []; decls = [] }
+  let decls = List.map (fun (name, ty) -> name, convert_decl ty) decls in
+  { globals = !globals; main = expr; datatys = []; decls = decls }

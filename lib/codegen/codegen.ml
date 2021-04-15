@@ -25,7 +25,7 @@ let _translate (prog : C.program) =
     llstruct_t
   in
   let adt_t = def_struct_t "adt" [i64_t; i8_ptr_t] in
-  let clos_t = def_struct_t "clos" [i8_ptr_t; i64_t; L.pointer_type i8_ptr_t] in
+  let clos_t = def_struct_t "clos" [i8_ptr_t; L.pointer_type i8_ptr_t] in
   let add_terminal builder instr =
       (match L.block_terminator (L.insertion_block builder) with
         Some _ -> ()
@@ -41,8 +41,8 @@ let _translate (prog : C.program) =
   | C.BoxT          -> i8_ptr_t 
   in
   let create_function_t (cname, _, _, cty) = 
-    let fun_t = L.function_type (ltype_of_type cty) ([| i8_ptr_t; L.pointer_type i8_ptr_t |]) in
-    L.declare_function cname fun_t _module
+    let fun_t = L.function_type (L.pointer_type @@ ltype_of_type cty) ([| i8_ptr_t; L.pointer_type i8_ptr_t |]) in
+    L.define_function cname fun_t _module
   in
   let cons_ts = 
     let cons_t i (cname, cty_list) = 
@@ -51,6 +51,11 @@ let _translate (prog : C.program) =
     List.concat @@ List.map (List.mapi cons_t <<< snd) prog.datatys
   in
   let function_vals = List.map (fun ((name,_,_,_) as gl) -> name, create_function_t gl) prog.globals in
+  let create_decl (name, (arg_ctys, out_cty)) =  
+    let fn_t = L.function_type (ltype_of_type out_cty) (Array.map ltype_of_type @@ Array.of_list arg_ctys) in
+    L.declare_function name fn_t _module
+  in
+  let _ = List.map create_decl prog.decls in
   let translate_cexpr fn builder = 
     let rec translate_cexpr value_to_set bb extra_args = function
     | C.CInt i -> 
@@ -94,38 +99,48 @@ let _translate (prog : C.program) =
       ignore (translate_cexpr unbox bb extra_args cexpr);
       let box = L.build_bitcast unbox (ltype_of_type cty) "unbox" builder in
       L.build_store box value_to_set builder
-    | C.CClos (cname, env, _env_tys) ->
+    | C.CClos (cname, env, env_tys) ->
       let clos = value_to_set in 
       let clos_fn_ptr = L.build_struct_gep clos 0 "clos_fn_ptr" builder in   
       let raw_fn_ptr = L.build_bitcast (List.assoc cname function_vals) i8_ptr_t "raw_fn_ptr" builder in
       let _ = L.build_store raw_fn_ptr clos_fn_ptr builder in
-      let translate_env i cexpr = 
-        let new_value_to_set = 
-          L.build_load ( 
-          L.build_gep clos (Array.map (L.const_int i32_t) [|2; i|]) "closarg_ptr" builder) "closarg" builder in
-        ignore (translate_cexpr new_value_to_set bb extra_args cexpr);
+      let env_ptr = L.build_malloc (L.array_type i8_ptr_t (List.length env)) "env_aloc" builder in
+      let translate_env i (cexpr, cexpr_cty) = 
+        let arg_raw_ptr  =   
+          L.build_load (L.build_in_bounds_gep env_ptr (Array.map (L.const_int i32_t) [|0; i|]) "raw_closarg_ptr_ptr" builder) "raw_closarg_ptr" builder in
+        let arg = L.build_bitcast arg_raw_ptr (L.pointer_type (ltype_of_type cexpr_cty)) "closarg_ptr" builder in   
+        ignore (translate_cexpr arg bb extra_args cexpr);
       in
-      ignore (List.mapi translate_env env);
-      let to_set = L.build_bitcast value_to_set (L.pointer_type @@ L.pointer_type clos_t) "closc" builder in
-      L.build_store clos to_set builder  
+      ignore (List.mapi translate_env (List.combine env env_tys));
+      ignore (L.build_store (L.build_bitcast env_ptr (L.pointer_type i8_ptr_t) "env_ptr_raw" builder) (L.build_struct_gep clos 1 "env" builder) builder);
+      value_to_set
     | C.CApp (cexpr1, _, cexpr2, cty2, out_ty) ->
-      let clos = L.build_alloca clos_t "clos" builder in  
+      let clos = L.build_alloca clos_t "app_lhs" builder in  
       let _ = translate_cexpr clos bb extra_args cexpr1 in
-      let to_apply = L.build_alloca (ltype_of_type cty2) "to_app" builder in
+      let to_apply = L.build_alloca (ltype_of_type cty2) "app_rhs" builder in
       let _ = translate_cexpr to_apply bb extra_args cexpr2 in
-      let to_apply = L.build_bitcast to_apply i8_ptr_t "raw_to_app" builder in
-      let fn_t = L.pointer_type @@ L.function_type (ltype_of_type out_ty) ([| i8_ptr_t; L.pointer_type i8_ptr_t |]) in
-      let fn_ptr = L.build_bitcast (L.build_struct_gep clos 0 "raw_fn_ptr" builder) fn_t "fn_ptr" builder in
-      let args = L.build_load (L.build_struct_gep clos 2 "args_ptr" builder) "args" builder in  
-      L.build_call fn_ptr [| to_apply; args |] "app_res" builder
-    | C.CArg (idx, _) -> 
+      let to_apply = L.build_bitcast to_apply i8_ptr_t "raw_app_rhs" builder in
+      let fn_t = L.pointer_type @@ L.function_type (L.pointer_type @@ ltype_of_type out_ty) ([| i8_ptr_t; L.pointer_type i8_ptr_t |]) in
+      let fn_ptr = L.build_bitcast (L.build_load (L.build_struct_gep clos 0 "raw_fn_ptr_ptr" builder) "raw_fn_ptr" builder) fn_t "fn_ptr" builder in
+      let args = L.build_load (L.build_struct_gep clos 1 "args_ptr" builder) "args" builder in  
+      let app_res_ptr = L.build_call fn_ptr [| to_apply; args |] "app_res_ptr" builder in
+      let app_res = L.build_load app_res_ptr "app_res" builder in
+      L.build_store app_res value_to_set builder  
+    | C.CArg (idx, cty) -> 
       let len = List.length extra_args in 
       if idx < len then 
         L.build_store (List.nth extra_args idx) value_to_set builder
       else if idx - len == 0 then
-        L.build_store (L.param fn 0) value_to_set builder
-      else 
-        L.build_store (L.build_gep (L.param fn 1) [|L.const_int i32_t (idx - len - 1)|] "carg" builder) value_to_set builder
+        let ptr = L.build_bitcast (L.param fn 0) (L.pointer_type @@ ltype_of_type cty) "arg_ptr" builder in 
+        let arg = L.build_load ptr "arg" builder in
+        L.build_store arg value_to_set builder
+      else (
+        let gep_ptr = L.build_bitcast (L.param fn 1) (L.pointer_type @@ L.array_type i8_ptr_t (idx - len)) "arg_gep_ptr" builder in
+        let raw_ptr_ptr = L.build_gep gep_ptr [|L.const_int i32_t 0; L.const_int i32_t (idx - len - 1)|] "raw_arg_ptr_ptr" builder in
+        let raw_ptr = L.build_load raw_ptr_ptr "raw_arg_ptr" builder in
+        let ptr = L.build_bitcast raw_ptr (L.pointer_type @@ ltype_of_type cty) "arg_ptr" builder in 
+        let arg = L.build_load ptr "arg" builder in
+        L.build_store arg value_to_set builder)
     | C.CConstruction (name, cargs, _) ->
       let tag, cons_t = List.assoc name cons_ts in
       let args = List.map (fun t -> L.build_malloc t "carg_aloc" builder) (Array.to_list @@ L.struct_element_types cons_t) in
@@ -200,11 +215,22 @@ let _translate (prog : C.program) =
       L.build_store ret value_to_set builder 
     in translate_cexpr  
   in 
+  let build_global (name, _, cexpr, cty) = 
+    let fn_def = List.assoc name function_vals in
+    let builder = L.builder_at_end context (L.entry_block fn_def) in
+    let rval_ptr = L.build_alloca (ltype_of_type cty) "rval_ptr" builder in
+    ignore (translate_cexpr fn_def builder rval_ptr (L.entry_block fn_def) [] cexpr);
+    add_terminal builder (L.build_ret rval_ptr); 
+  in
+  List.iter build_global prog.globals;
   let main_t = L.function_type void_t [||] in   
   let main_fn = L.define_function "main" main_t _module in
   let builder = L.builder_at_end context (L.entry_block main_fn) in
   let rval = L.build_alloca (i64_t) "retval" builder in  
   ignore (translate_cexpr main_fn builder rval (L.entry_block main_fn) [] prog.main);
+  (match L.lookup_function "print_int" _module with
+  | Some fn -> ignore (L.build_call fn [| L.build_load rval "val" builder |] "ign" builder);
+  | None -> ());
   add_terminal builder L.build_ret_void;
   _module 
 

@@ -1,6 +1,6 @@
 open Printf
 
-let src = Sys.argv.(1);;
+let src = Sys.argv.(1)
 let src_file =  "./reg-tests/" ^ src ^ ".lingo"
 let out_file = src_file ^ ".s"
 let out_exec = "./reg-tests/" ^ src
@@ -14,16 +14,17 @@ let string_of_file file =
   close_in ic;
   str
 
+
 let llmodule_string src_file =
-  let src = string_of_file src_file
-  in
-  let ast =
-    let lexbuf = Lexing.from_string src in 
-    Parse.Parser.program Parse.Scanner.tokenize lexbuf 
-  in
-  let core_ast = Core.Conversion.convert ast 
-  in
-  Llvm.string_of_llmodule (Codegen.translate core_ast)
+  let src = string_of_file src_file in
+  let prog = let lexbuf = Lexing.from_string src in Parse.Parser.program Parse.Scanner.tokenize lexbuf 
+  in 
+  let sast = let core_ast = Core.Conversion.convert prog in Core.Typecheck.check_prog core_ast 
+  in 
+  let mast = Mono.Conversion.convert_prog sast in 
+  let cast = Closure.Conversion.convert_prog mast in 
+  Llvm.string_of_llmodule @@ Codegen._translate cast
+
 
 
 let rec read_input_string ic = 

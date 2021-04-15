@@ -52,5 +52,6 @@ type data_param
 type def 
   = LetDef of name * name list * ty * check_expr
   | DataDef of name * data_param list * cons_def list
+  | LetDecl of name * ty 
 
 type program = def list

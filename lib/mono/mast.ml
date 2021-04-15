@@ -41,5 +41,6 @@ type data_def = global * cons_def list
 type program = {
   main : mexpr;
   letdefs : (global * mty * mexpr) list;
-  datadefs: data_def list
+  datadefs: data_def list;
+  decls: (global * mty) list;
 }

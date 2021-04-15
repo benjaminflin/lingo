@@ -67,6 +67,7 @@ type data_def = global * data_param list * cons_def list
 type def 
   = LetDef of global * ty * check_expr
   | DataDef of data_def
+  | LetDecl of global * ty
 
 type env =
   {
@@ -116,6 +117,7 @@ module Sast = struct
     type def 
     = LetDef of global * sty * ast
     | DataDef of data_def
+    | LetDecl of global * sty
 
     type program = def list
   end
@@ -315,12 +317,14 @@ let cond c e = if c then () else raise e
 let rec extract_data_env = function
 | (LetDef _)::defs -> extract_data_env defs
 | (DataDef data_def)::defs -> data_def :: extract_data_env defs
-| [] -> []
+| _::defs -> extract_data_env defs
+| _ -> []
 
 let rec extract_global_env = function
 | (LetDef (global, ty, _))::defs -> (global,ty) :: extract_global_env defs
 | (DataDef _)::defs -> extract_global_env defs
-| [] -> []
+| _::defs -> extract_global_env defs
+| _ -> []
 
 let env_to_kenv env : KindChecker.kenv = { kind_env = []; data_env = env.data_env; }
 let extend_env ty env = { env with local_env = ty :: env.local_env }
@@ -653,6 +657,7 @@ let check_def env = function
   let _, _, sexpr = check env ty [] cexpr in
   S.LetDef (name, S.ty_to_sty ty, sexpr)
 | DataDef dd -> S.DataDef (S.convert_data_def dd)
+| LetDecl (name, ty) -> S.LetDecl (name, S.ty_to_sty ty)
 
 let check_prog prog = 
   let data_env = extract_data_env prog in

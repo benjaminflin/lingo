@@ -50,9 +50,9 @@ rule tokenize = parse
 | digits as lxm                         { LITERAL(int_of_string lxm) }
 | '\'' ((digit | lchar | uchar) as lxm) '\''   
                                         { CHAR(lxm) }
-| lchar+ (digit | lchar | uchar)* ('\'')* as lxm    
+| lchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    
                                         { LID(lxm) }
-| uchar+ (digit | lchar | uchar)* ('\'')* as lxm    
+| uchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    
                                         { UID(lxm) }
 | eof                                   { EOF }
 | _ as char { raise (Failure("illegal character " ^ Char.escaped char ))}

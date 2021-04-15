@@ -34,6 +34,10 @@ program:
 def:
 | let_def { $1 }
 | data_def { $1 }
+| let_decl { $1 } 
+
+let_decl: 
+| LID COLON ty SEMICOLON          { LetDecl($1, $3) }
 
 data_def:
 | DATA UID data_param_list WHERE cons_list { DataDef($2, $3, $5) }

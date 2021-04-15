@@ -194,4 +194,5 @@ let convert_def = function
                 let dbmap = List.rev (List.map data_param_name dp_list) in
                 List.map (convert_cons_def dbmap) cd_list
                ) 
+  | Ast.LetDecl (name, ty) -> Tc.LetDecl (name, convert_ty [] ty)  
 let convert = List.map convert_def

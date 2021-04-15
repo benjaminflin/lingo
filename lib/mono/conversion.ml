@@ -147,7 +147,8 @@ let convert_prog sprog =
   let initial_sprog = { 
     letdefs = []; 
     main = Global ("unit", DataTy "Unit");
-    datadefs = [] 
+    datadefs = [];
+    decls = [];
   } in
   let to_prog mprog = function
   | S.LetDef (global, _, sexpr) -> 
@@ -161,6 +162,9 @@ let convert_prog sprog =
       global, List.map (fun (name, l) -> name, List.map convert_sty l) cd_list 
     in
     {mprog with datadefs = datadef::mprog.datadefs } 
+  | S.LetDecl (global, sty) ->
+    let decl = (global, convert_sty sty) in
+    { mprog with decls = decl::mprog.decls }
   in
   let prog = List.fold_left to_prog initial_sprog sprog in
   { prog with letdefs = 
