@@ -106,10 +106,11 @@ let _translate (prog : C.program) =
       let _ = L.build_store raw_fn_ptr clos_fn_ptr builder in
       let env_ptr = L.build_malloc (L.array_type i8_ptr_t (List.length env)) "env_aloc" builder in
       let translate_env i (cexpr, cexpr_cty) = 
-        let arg_raw_ptr  =   
-          L.build_load (L.build_in_bounds_gep env_ptr (Array.map (L.const_int i32_t) [|0; i|]) "raw_closarg_ptr_ptr" builder) "raw_closarg_ptr" builder in
-        let arg = L.build_bitcast arg_raw_ptr (L.pointer_type (ltype_of_type cexpr_cty)) "closarg_ptr" builder in   
-        ignore (translate_cexpr arg bb extra_args cexpr);
+        let arg_raw_ptr_ptr = L.build_in_bounds_gep env_ptr (Array.map (L.const_int i32_t) [|0; i|]) "raw_closarg_ptr_ptr" builder in
+        let arg_ptr = L.build_malloc (ltype_of_type cexpr_cty) "closarg_ptr" builder in
+        ignore (translate_cexpr arg_ptr bb extra_args cexpr);
+        let arg_raw_ptr = L.build_bitcast arg_ptr i8_ptr_t "raw_arg_ptr" builder in
+        ignore (L.build_store arg_raw_ptr arg_raw_ptr_ptr builder);
       in
       ignore (List.mapi translate_env (List.combine env env_tys));
       ignore (L.build_store (L.build_bitcast env_ptr (L.pointer_type i8_ptr_t) "env_ptr_raw" builder) (L.build_struct_gep clos 1 "env" builder) builder);
