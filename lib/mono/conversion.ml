@@ -115,11 +115,11 @@ let fix prog =
       (match (out_ty, out_ty') with
       | (BoxT, _) -> 
         (match (in_ty, in_ty') with
-        | (BoxT, _) -> out_ty', Unbox ((App (expr1, ty1, Box (expr2, in_ty'), in_ty, out_ty)), out_ty')
+        | (BoxT, _) -> out_ty', Unbox ((App (expr1, ty1, Box (expr2, in_ty'), BoxT, out_ty)), out_ty')
         | _ -> out_ty', Unbox ((App (expr1, ty1, expr2, in_ty, out_ty)), out_ty'))
       | _ -> 
         (match (in_ty, in_ty') with
-        | (BoxT, _) -> out_ty, (App (expr1, ty1, Box (expr2, in_ty'), in_ty', out_ty))
+        | (BoxT, _) -> out_ty, (App (expr1, ty1, Box (expr2, in_ty'), BoxT, out_ty))
         | _ -> out_ty, (App (expr1, ty1, expr2, in_ty', out_ty))))
     | _ -> raise NotImplemented
     )

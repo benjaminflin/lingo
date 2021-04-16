@@ -44,6 +44,22 @@ let rec free_vars cutoff = function
   | M.Destructor (_, num_abstr, mexpr, _) -> free_vars (cutoff + num_abstr) mexpr
   | M.Wildcard (mexpr, _) -> free_vars cutoff mexpr  
 
+let string_of_binop = function
+| Tc.Plus -> "plus" 
+| Tc.Minus -> "minus" 
+| Tc.Times -> "times" 
+| Tc.Divide -> "divide"
+| Tc.Geq -> "geq"
+| Tc.Gt -> "gt"
+| Tc.Eq -> "eq"
+| Tc.Leq -> "leq" 
+| Tc.Lt -> "lt"
+| Tc.Neq -> "neq"
+| Tc.And -> "and"
+| Tc.Or -> "or"
+let string_of_unop = function
+| Tc.Not -> "not"
+| Tc.Neg -> "neg"
 
 let globals = ref []
 let convert_mexpr name (prog : M.program) expr = 
@@ -100,26 +116,8 @@ let convert_mexpr name (prog : M.program) expr =
       CClos (cname, [], [])
       )
   | M.Binop (binop, _ty) -> 
-    let string_of_binop = function
-    | Tc.Plus -> "plus" 
-    | Tc.Minus -> "minus" 
-    | Tc.Times -> "times" 
-    | Tc.Divide -> "divide"
-    | Tc.Geq -> "geq"
-    | Tc.Gt -> "gt"
-    | Tc.Eq -> "eq"
-    | Tc.Leq -> "leq" 
-    | Tc.Lt -> "lt"
-    | Tc.Neq -> "neq"
-    | Tc.And -> "and"
-    | Tc.Or -> "or"
-    in 
     CClos ("__prim__" ^ string_of_binop binop , [], [])
   | M.Unop (unop, _ty) ->
-    let string_of_unop = function
-    | Tc.Not -> "not"
-    | Tc.Neg -> "neg"
-    in
     CClos ("__prim__" ^ string_of_unop unop, [], [])
   | M.If (mexpr1, mexpr2, mexpr3, out_mty) ->
     let expr1 = convert_mexpr mexpr1 in
@@ -136,6 +134,58 @@ let convert_mexpr name (prog : M.program) expr =
     CWildcard (expr, convert_mty mty)
   in convert_mexpr expr
 
+
+let gen_ops () = 
+  let decls = ref [] in
+  let binops = [
+    Tc.Plus
+  ; Tc.Minus 
+  ; Tc.Times 
+  ; Tc.Divide 
+  ; Tc.Geq 
+  ; Tc.Gt 
+  ; Tc.Eq 
+  ; Tc.Leq 
+  ; Tc.Lt 
+  ; Tc.Neq 
+  ; Tc.And 
+  ; Tc.Or ]
+  in
+  let unops = [ Tc.Neg; Tc.Not ] in
+  let unop_tys = [ CIntT, CIntT; CBoolT, CBoolT ] in
+  let binop_tys = [
+    CIntT, CIntT
+  ; CIntT, CIntT
+  ; CIntT, CIntT 
+  ; CIntT, CIntT 
+  ; CIntT, CBoolT 
+  ; CIntT, CBoolT 
+  ; CIntT, CBoolT 
+  ; CIntT, CBoolT 
+  ; CIntT, CBoolT 
+  ; CIntT, CBoolT 
+  ; CBoolT, CBoolT 
+  ; CBoolT, CBoolT 
+  ] in
+  let gen_binop binop (in_ty, out_ty) =
+    let name = string_of_binop binop in
+    let clos1 = "__prim__" ^ name, 1, CClos ("__prim__" ^ name ^ "1", [CArg (0, in_ty)], [in_ty]), CClosT in
+    let clos2 = "__prim__" ^ name ^ "1", 2, CCall ("__prim__binop__" ^ name, [CArg (1, in_ty), in_ty; CArg (0, in_ty), in_ty]), out_ty in
+    decls := ("__prim__binop__" ^ name, ([in_ty; in_ty], out_ty))::!decls;
+    globals := clos1::clos2::!globals;
+  in
+  let gen_unop unop (in_ty, out_ty) =   
+    let name = string_of_unop unop in
+    let clos = "__prim__" ^ name, 1, CCall ("__prim__unop__" ^ name, [CArg (0, in_ty), in_ty]), out_ty in
+    decls := ("__prim__unop__" ^ name, ([in_ty], out_ty))::!decls;
+    globals := clos::!globals;
+  in
+  List.iter2 gen_binop binops binop_tys;
+  List.iter2 gen_unop unops unop_tys;
+  !decls
+
+
+
 let rec convert_decl = function
 | M.Arr (in_mty, out_mty) -> 
   let tys, out_ty = convert_decl out_mty in
@@ -149,6 +199,7 @@ let convert_prog ({ main; letdefs; decls; datadefs } as prog: M.program) =
     fun (dname, cs) -> dname, List.map (
       fun (cname, tys) -> cname, List.map convert_mty tys) cs) datadefs
   in
+  let decls = (gen_ops ()) @ decls in
   let ret = { globals = !globals; main = expr; datatys = datatys; decls = decls } in
   globals := [];
   vars := SM.empty;

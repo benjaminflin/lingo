@@ -64,8 +64,7 @@ let _translate (prog : C.program) =
       L.build_store (L.const_int char_t (int_of_char c)) value_to_set builder
     | C.CBool b -> 
       L.build_store (L.const_int bool_t (if b then 1 else 0)) value_to_set builder
-    | C.CIf (predicate, then_expr, else_expr, ty) -> 
-        let value_to_set = L.build_alloca (ltype_of_type ty) "ifres" builder in
+    | C.CIf (predicate, then_expr, else_expr, _ty) -> 
         let brend = L.append_block context "end" fn in
         L.position_at_end brend builder; 
 
@@ -82,9 +81,10 @@ let _translate (prog : C.program) =
         L.move_block_after brfalse brend;
         L.position_at_end bb builder; 
         let branch = 
-          let v = L.build_alloca bool_t "ifcond" builder in
-          ignore (translate_cexpr v bb extra_args predicate);
-          L.build_cond_br v brtrue brfalse
+          let cond_ptr = L.build_alloca bool_t "ifcond" builder in
+          ignore (translate_cexpr cond_ptr bb extra_args predicate);
+          let cond_val = L.build_load cond_ptr "cond_val" builder in 
+          L.build_cond_br cond_val brtrue brfalse
         in
         add_terminal builder branch;
         L.position_at_end brend builder;
@@ -95,10 +95,12 @@ let _translate (prog : C.program) =
       let box = L.build_bitcast unbox i8_ptr_t "box" builder in
       L.build_store box value_to_set builder
     | C.Unbox (cexpr, cty) ->
-      let unbox = L.build_alloca i8_ptr_t "box" builder in
-      ignore (translate_cexpr unbox bb extra_args cexpr);
-      let box = L.build_bitcast unbox (ltype_of_type cty) "unbox" builder in
-      L.build_store box value_to_set builder
+      let boxed = L.build_alloca i8_ptr_t "boxed" builder in
+      ignore (translate_cexpr boxed bb extra_args cexpr);
+      let unbox_ptr_ptr = L.build_bitcast boxed (L.pointer_type @@ L.pointer_type @@ ltype_of_type cty) "unbox_ptr_ptr" builder in
+      let unbox_ptr = L.build_load unbox_ptr_ptr "unbox_ptr" builder in
+      let unbox_val = L.build_load unbox_ptr "unbox_val" builder in
+      L.build_store unbox_val value_to_set builder
     | C.CClos (cname, env, env_tys) ->
       let clos = value_to_set in 
       let clos_fn_ptr = L.build_struct_gep clos 0 "clos_fn_ptr" builder in   
