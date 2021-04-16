@@ -141,8 +141,15 @@ let rec convert_decl = function
   let tys, out_ty = convert_decl out_mty in
   (convert_mty in_mty :: tys), out_ty
 | mty -> [], convert_mty mty
-let convert_prog ({ main; letdefs; decls; _ } as prog: M.program) = 
+let convert_prog ({ main; letdefs; decls; datadefs } as prog: M.program) = 
   let expr = convert_mexpr "__main__" prog main in
   List.iter (fun (name, _, mexpr) -> ignore (convert_mexpr name prog mexpr)) letdefs;
   let decls = List.map (fun (name, ty) -> name, convert_decl ty) decls in
-  { globals = !globals; main = expr; datatys = []; decls = decls }
+  let datatys = List.map (
+    fun (dname, cs) -> dname, List.map (
+      fun (cname, tys) -> cname, List.map convert_mty tys) cs) datadefs
+  in
+  let ret = { globals = !globals; main = expr; datatys = datatys; decls = decls } in
+  globals := [];
+  vars := SM.empty;
+  ret

@@ -82,18 +82,19 @@ and convert_calt = function
     Arr (pick_tys in_ty in_ty', pick_tys out_ty out_ty')
   | _ -> ty1)
 let fix prog = 
-
-  let rec fix = function
+  let rec fix tys = function
   | Lam (expr, in_ty, _) ->
-    let out_ty, expr = fix expr in 
+    let out_ty, expr = fix tys expr in 
     Arr (in_ty, out_ty), Lam (expr, in_ty, out_ty)
   | Case (scrut, _, ca_list, _) ->
-    let scrut_ty, scrut = fix scrut in 
-    let calt_res = List.map fix_calt ca_list in
+    let scrut_ty, scrut = fix tys scrut in 
+    let calt_res = List.map (fix_calt tys) ca_list in
     let res_ty = fst @@ List.hd calt_res in
     res_ty, Case (scrut, scrut_ty, List.map snd calt_res, res_ty) 
   | DbIndex (idx, ty) -> 
-    ty, DbIndex (idx, ty)
+    (match List.nth_opt tys idx with
+    | Some ty -> ty, DbIndex (idx, ty)
+    | None -> ty, DbIndex (idx, ty))
   | Global (global, ty) -> 
     let ty' = List.assoc global (List.map (fun (name,ty,_) -> (name,ty)) prog.letdefs) in
     let out_ty = pick_tys ty ty' in
@@ -103,12 +104,12 @@ let fix prog =
   | Unop (op, ty) -> 
     ty, Unop (op, ty)
   | Let (expr1, _, expr2, _) ->
-    let ty1, expr1 = fix expr1 in
-    let ty2, expr2 = fix expr2 in
+    let ty1, expr1 = fix tys expr1 in
+    let ty2, expr2 = fix tys expr2 in
     ty2, Let (expr1, ty1, expr2, ty2)
   | App (expr1, _, expr2, _, out_ty') ->
-    let ty1, expr1 = fix expr1 in
-    let in_ty', expr2 = fix expr2 in
+    let ty1, expr1 = fix tys expr1 in
+    let in_ty', expr2 = fix tys expr2 in
     (match ty1 with
     | Arr (in_ty, out_ty) -> 
       (match (out_ty, out_ty') with
@@ -125,22 +126,27 @@ let fix prog =
   | Construction (global, ty) ->
     ty, Construction (global, ty)
   | If (expr1, expr2, expr3, _) ->
-    let _, expr1 = fix expr1 in
-    let out_ty, expr2 = fix expr2 in
-    let _, expr3 = fix expr3 in
+    let _, expr1 = fix tys expr1 in
+    let out_ty, expr2 = fix tys expr2 in
+    let _, expr3 = fix tys expr3 in
     out_ty, If (expr1, expr2, expr3, out_ty)
   | Int i -> IntT, Int i
   | Char c -> CharT, Char c
   | Bool b -> BoolT, Bool b
   | _ -> raise MonoError
-  and fix_calt = function
-  | Destructor (global, num_abstr, expr, _) ->
-    let ty, expr = fix expr in
-    ty, Destructor (global, num_abstr, expr, ty)
+  and fix_calt tys = function
+  | Destructor (global, num_abstr, expr, ty') ->
+    let all_cons = List.concat (List.map snd prog.datadefs) in
+    let tys' = List.assoc global all_cons in
+    let ty, expr = fix (tys' @ tys) expr in
+    (match (ty, ty') with
+    | (BoxT, _) -> ty, Destructor (global, num_abstr, Unbox (expr, ty'), ty)
+    | (_, _) -> ty, Destructor (global, num_abstr, expr, ty)
+    )
   | Wildcard (expr, _) ->
-    let ty, expr = fix expr in
+    let ty, expr = fix tys expr in
     ty, Wildcard (expr, ty)
-  in fix
+  in fix []
 
 
 let convert_prog sprog = 
