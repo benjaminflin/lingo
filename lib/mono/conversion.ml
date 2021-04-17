@@ -46,11 +46,12 @@ let rec convert_sexpr = function
   let ty2, expr2 = convert_sexpr sexpr2 in
   ty2, Let (expr1, ty1, expr2, ty2)
 
-| S.App (sexpr1, _, sexpr2, _, _) ->
+| S.App (sexpr1, _, sexpr2, _, out_ty) ->
   let ty1, expr1 = convert_sexpr sexpr1 in
   let ty2, expr2 = convert_sexpr sexpr2 in
+  let out_ty = convert_sty out_ty in
   (match ty1 with
-  | Arr (_, out_ty) ->
+  | Arr (_, _) ->
       out_ty, App (expr1, ty1, expr2, ty2, out_ty)
   | _ -> raise MonoError
   )
@@ -140,6 +141,7 @@ let fix prog =
     let tys' = List.assoc global all_cons in
     let ty, expr = fix (tys' @ tys) expr in
     (match (ty, ty') with
+    | (BoxT, BoxT) -> ty, Destructor (global, num_abstr, expr, ty)
     | (BoxT, _) -> ty, Destructor (global, num_abstr, Unbox (expr, ty'), ty)
     | (_, _) -> ty, Destructor (global, num_abstr, expr, ty)
     )

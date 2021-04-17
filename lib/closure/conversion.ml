@@ -88,18 +88,17 @@ let convert_mexpr name (prog : M.program) expr =
   | M.Int i -> CInt i
   | M.Bool i -> CBool i
   | M.Char i -> CChar i
-  | M.Construction (cname, _mty) -> 
+  | M.Construction (cname, _mty) -> ( 
     let cons_tys = List.map convert_mty 
       @@ List.assoc cname @@ List.concat (List.map snd prog.datadefs) in
     let dty = CDataTy (fst @@ List.find (fun (_, d) -> List.mem cname (List.map fst d)) prog.datadefs) in
     let globals' = List.map (fun (name,tyl,expr,ty) -> name, (tyl, expr, ty)) !globals in 
-    List.iter print_endline @@ List.map fst globals';
-    print_endline cname;  
     (match List.assoc_opt cname globals' with
     | Some _ -> CClos (cname, [], [])
     | None -> 
       (* I don't know if I could make this more inefficient if I tried *)
       let names = List.init (List.length cons_tys) (fun _ -> unique_name cname) in
+
       let add_global i name =
         let args = List.init (i+1) (fun k -> CArg (k, List.nth cons_tys k)) in
         let arg_tys = (List.init (i+1) (fun k -> List.nth cons_tys k)) in
@@ -113,8 +112,8 @@ let convert_mexpr name (prog : M.program) expr =
         globals := (name, List.length arg_tys, expr, ty)::!globals;
       in
       List.iteri add_global names;
-      CClos (cname, [], [])
-      )
+      if List.length names == 0 then CConstruction (cname, [], dty) else CClos (cname, [], [])
+  ))
   | M.Binop (binop, _ty) -> 
     CClos ("__prim__" ^ string_of_binop binop , [], [])
   | M.Unop (unop, _ty) ->
