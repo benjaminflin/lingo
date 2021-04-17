@@ -20,17 +20,12 @@ dune exec ./tests/test_all.exe
 ```
 
 TODO:
-
--   Data declerations
--   implement typeclasses
--   Finish typing rules
-
-Edwards OH:
-
--   SYNTAX!!!
--   Type-checking concerns (typeclasses, multiplicities, etc. (No inference???))
--   Pipeline organization (Should we do our plan of parsing and then buildling
-    multiple different lambdas that get set to different places)
--   Modified do notation ??? (he already said no, but we can still ask)
--   Implementation details (typeclasses, lambda calculus, algebraic data types (tagged unions??))
--   Mention to him more specifically our memory design and see what he say (garbage collection)
+- Close over let expressions and generate code for them 
+    - Two separate cases for recursive/non-recursive
+    - Note: dbindex 0 refers to self inside let expr
+- Fix mono/box/unboxing because it's really buggy right now
+- Produce lots of regression tests, and create a way to test them all at once __INSIDE DOCKER__
+    - Hopefully, we can unify `tests/` and `reg-tests/`
+- Produce implicit wildcard which calls `die()` for all case statements
+- Fix substitution issue in typechecker 
+- Clean up code in general
