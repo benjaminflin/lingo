@@ -15,6 +15,7 @@ RUN apt-get -yq update && \
     aspcud \
     ca-certificates \
     python2.7 \
+    python3.9 \
     pkg-config \
     cmake \ 
     opam \ 

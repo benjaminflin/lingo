@@ -1,0 +1,728 @@
+; ModuleID = 'lingo'
+source_filename = "lingo"
+
+%clos = type { i8*, i8** }
+
+define i1* @__prim__not(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i1
+  %arg_ptr = bitcast i8* %0 to i1*
+  %arg = load i1, i1* %arg_ptr
+  store i1 %arg, i1* %call_arg_ptr
+  %call_arg = load i1, i1* %call_arg_ptr
+  %call_ret = call i1 @__prim__unop__not(i1 %call_arg)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define i64* @__prim__neg(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i64
+  %call_arg_ptr = alloca i64
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_ret = call i64 @__prim__unop__neg(i64 %call_arg)
+  store i64 %call_ret, i64* %rval_ptr
+  ret i64* %rval_ptr
+}
+
+define %clos* @__prim__or(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__or1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i1* getelementptr (i1, i1* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i1*
+  %arg_ptr = bitcast i8* %0 to i1*
+  %arg = load i1, i1* %arg_ptr
+  store i1 %arg, i1* %closarg_ptr
+  %raw_arg_ptr = bitcast i1* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__or1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i1
+  %call_arg_ptr1 = alloca i1
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i1*
+  %arg = load i1, i1* %arg_ptr
+  store i1 %arg, i1* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i1*
+  %arg3 = load i1, i1* %arg_ptr2
+  store i1 %arg3, i1* %call_arg_ptr1
+  %call_arg = load i1, i1* %call_arg_ptr
+  %call_arg4 = load i1, i1* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__or(i1 %call_arg, i1 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__and(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__and1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i1* getelementptr (i1, i1* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i1*
+  %arg_ptr = bitcast i8* %0 to i1*
+  %arg = load i1, i1* %arg_ptr
+  store i1 %arg, i1* %closarg_ptr
+  %raw_arg_ptr = bitcast i1* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__and1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i1
+  %call_arg_ptr1 = alloca i1
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i1*
+  %arg = load i1, i1* %arg_ptr
+  store i1 %arg, i1* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i1*
+  %arg3 = load i1, i1* %arg_ptr2
+  store i1 %arg3, i1* %call_arg_ptr1
+  %call_arg = load i1, i1* %call_arg_ptr
+  %call_arg4 = load i1, i1* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__and(i1 %call_arg, i1 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__neq(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__neq1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__neq1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__neq(i64 %call_arg, i64 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__lt(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__lt1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__lt1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__lt(i64 %call_arg, i64 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__leq(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__leq1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__leq1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__leq(i64 %call_arg, i64 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__eq(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__eq1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__eq1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__eq(i64 %call_arg, i64 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__gt(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__gt1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__gt1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__gt(i64 %call_arg, i64 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__geq(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i1* (i8*, i8**)* @__prim__geq1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i1* @__prim__geq1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i1
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i1 @__prim__binop__geq(i64 %call_arg, i64 %call_arg4)
+  store i1 %call_ret, i1* %rval_ptr
+  ret i1* %rval_ptr
+}
+
+define %clos* @__prim__divide(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i64* (i8*, i8**)* @__prim__divide1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i64* @__prim__divide1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i64
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i64 @__prim__binop__divide(i64 %call_arg, i64 %call_arg4)
+  store i64 %call_ret, i64* %rval_ptr
+  ret i64* %rval_ptr
+}
+
+define %clos* @__prim__times(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i64* (i8*, i8**)* @__prim__times1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i64* @__prim__times1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i64
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i64 @__prim__binop__times(i64 %call_arg, i64 %call_arg4)
+  store i64 %call_ret, i64* %rval_ptr
+  ret i64* %rval_ptr
+}
+
+define %clos* @__prim__minus(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i64* (i8*, i8**)* @__prim__minus1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i64* @__prim__minus1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i64
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i64 @__prim__binop__minus(i64 %call_arg, i64 %call_arg4)
+  store i64 %call_ret, i64* %rval_ptr
+  ret i64* %rval_ptr
+}
+
+define %clos* @__prim__plus(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 0
+  store i8* bitcast (i64* (i8*, i8**)* @__prim__plus1 to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))
+  %env_aloc = bitcast i8* %malloccall to [1 x i8*]*
+  %raw_closarg_ptr_ptr = getelementptr inbounds [1 x i8*], [1 x i8*]* %env_aloc, i32 0, i32 0
+  %malloccall1 = tail call i8* @malloc(i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32))
+  %closarg_ptr = bitcast i8* %malloccall1 to i64*
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %closarg_ptr
+  %raw_arg_ptr = bitcast i64* %closarg_ptr to i8*
+  store i8* %raw_arg_ptr, i8** %raw_closarg_ptr_ptr
+  %env = getelementptr inbounds %clos, %clos* %rval_ptr, i32 0, i32 1
+  %env_ptr_raw = bitcast [1 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  ret %clos* %rval_ptr
+}
+
+define i64* @__prim__plus1(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i64
+  %call_arg_ptr = alloca i64
+  %call_arg_ptr1 = alloca i64
+  %arg_gep_ptr = bitcast i8** %1 to [1 x i8*]*
+  %raw_arg_ptr_ptr = getelementptr [1 x i8*], [1 x i8*]* %arg_gep_ptr, i32 0, i32 0
+  %raw_arg_ptr = load i8*, i8** %raw_arg_ptr_ptr
+  %arg_ptr = bitcast i8* %raw_arg_ptr to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %call_arg_ptr
+  %arg_ptr2 = bitcast i8* %0 to i64*
+  %arg3 = load i64, i64* %arg_ptr2
+  store i64 %arg3, i64* %call_arg_ptr1
+  %call_arg = load i64, i64* %call_arg_ptr
+  %call_arg4 = load i64, i64* %call_arg_ptr1
+  %call_ret = call i64 @__prim__binop__plus(i64 %call_arg, i64 %call_arg4)
+  store i64 %call_ret, i64* %rval_ptr
+  ret i64* %rval_ptr
+}
+
+define i64* @f(i8* %0, i8** %1) {
+entry:
+  %rval_ptr = alloca i64
+  %ifcond = alloca i1
+  %app_lhs53 = alloca %clos
+  %app_lhs54 = alloca %clos
+  %clos_fn_ptr55 = getelementptr inbounds %clos, %clos* %app_lhs54, i32 0, i32 0
+  store i8* bitcast (%clos* (i8*, i8**)* @__prim__eq to i8*), i8** %clos_fn_ptr55
+  %malloccall56 = tail call i8* @malloc(i32 0)
+  %env_aloc57 = bitcast i8* %malloccall56 to [0 x i8*]*
+  %env58 = getelementptr inbounds %clos, %clos* %app_lhs54, i32 0, i32 1
+  %env_ptr_raw59 = bitcast [0 x i8*]* %env_aloc57 to i8**
+  store i8** %env_ptr_raw59, i8*** %env58
+  %app_rhs60 = alloca i64
+  %arg_ptr61 = bitcast i8* %0 to i64*
+  %arg62 = load i64, i64* %arg_ptr61
+  store i64 %arg62, i64* %app_rhs60
+  %raw_app_rhs63 = bitcast i64* %app_rhs60 to i8*
+  %raw_fn_ptr_ptr64 = getelementptr inbounds %clos, %clos* %app_lhs54, i32 0, i32 0
+  %raw_fn_ptr65 = load i8*, i8** %raw_fn_ptr_ptr64
+  %fn_ptr66 = bitcast i8* %raw_fn_ptr65 to %clos* (i8*, i8**)*
+  %args_ptr67 = getelementptr inbounds %clos, %clos* %app_lhs54, i32 0, i32 1
+  %args68 = load i8**, i8*** %args_ptr67
+  %app_res_ptr69 = call %clos* %fn_ptr66(i8* %raw_app_rhs63, i8** %args68)
+  %app_res70 = load %clos, %clos* %app_res_ptr69
+  store %clos %app_res70, %clos* %app_lhs53
+  %app_rhs71 = alloca i64
+  store i64 0, i64* %app_rhs71
+  %raw_app_rhs72 = bitcast i64* %app_rhs71 to i8*
+  %raw_fn_ptr_ptr73 = getelementptr inbounds %clos, %clos* %app_lhs53, i32 0, i32 0
+  %raw_fn_ptr74 = load i8*, i8** %raw_fn_ptr_ptr73
+  %fn_ptr75 = bitcast i8* %raw_fn_ptr74 to i1* (i8*, i8**)*
+  %args_ptr76 = getelementptr inbounds %clos, %clos* %app_lhs53, i32 0, i32 1
+  %args77 = load i8**, i8*** %args_ptr76
+  %app_res_ptr78 = call i1* %fn_ptr75(i8* %raw_app_rhs72, i8** %args77)
+  %app_res79 = load i1, i1* %app_res_ptr78
+  store i1 %app_res79, i1* %ifcond
+  %cond_val = load i1, i1* %ifcond
+  br i1 %cond_val, label %brtrue, label %brfalse
+
+brtrue:                                           ; preds = %entry
+  store i64 1, i64* %rval_ptr
+  br label %end
+
+brfalse:                                          ; preds = %entry
+  %app_lhs = alloca %clos
+  %app_lhs1 = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %app_lhs1, i32 0, i32 0
+  store i8* bitcast (%clos* (i8*, i8**)* @__prim__times to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 0)
+  %env_aloc = bitcast i8* %malloccall to [0 x i8*]*
+  %env = getelementptr inbounds %clos, %clos* %app_lhs1, i32 0, i32 1
+  %env_ptr_raw = bitcast [0 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  %app_rhs = alloca i64
+  %arg_ptr = bitcast i8* %0 to i64*
+  %arg = load i64, i64* %arg_ptr
+  store i64 %arg, i64* %app_rhs
+  %raw_app_rhs = bitcast i64* %app_rhs to i8*
+  %raw_fn_ptr_ptr = getelementptr inbounds %clos, %clos* %app_lhs1, i32 0, i32 0
+  %raw_fn_ptr = load i8*, i8** %raw_fn_ptr_ptr
+  %fn_ptr = bitcast i8* %raw_fn_ptr to %clos* (i8*, i8**)*
+  %args_ptr = getelementptr inbounds %clos, %clos* %app_lhs1, i32 0, i32 1
+  %args = load i8**, i8*** %args_ptr
+  %app_res_ptr = call %clos* %fn_ptr(i8* %raw_app_rhs, i8** %args)
+  %app_res = load %clos, %clos* %app_res_ptr
+  store %clos %app_res, %clos* %app_lhs
+  %app_rhs2 = alloca i64
+  %app_lhs3 = alloca %clos
+  %clos_fn_ptr4 = getelementptr inbounds %clos, %clos* %app_lhs3, i32 0, i32 0
+  store i8* bitcast (i64* (i8*, i8**)* @f to i8*), i8** %clos_fn_ptr4
+  %malloccall5 = tail call i8* @malloc(i32 0)
+  %env_aloc6 = bitcast i8* %malloccall5 to [0 x i8*]*
+  %env7 = getelementptr inbounds %clos, %clos* %app_lhs3, i32 0, i32 1
+  %env_ptr_raw8 = bitcast [0 x i8*]* %env_aloc6 to i8**
+  store i8** %env_ptr_raw8, i8*** %env7
+  %app_rhs9 = alloca i64
+  %app_lhs10 = alloca %clos
+  %app_lhs11 = alloca %clos
+  %clos_fn_ptr12 = getelementptr inbounds %clos, %clos* %app_lhs11, i32 0, i32 0
+  store i8* bitcast (%clos* (i8*, i8**)* @__prim__minus to i8*), i8** %clos_fn_ptr12
+  %malloccall13 = tail call i8* @malloc(i32 0)
+  %env_aloc14 = bitcast i8* %malloccall13 to [0 x i8*]*
+  %env15 = getelementptr inbounds %clos, %clos* %app_lhs11, i32 0, i32 1
+  %env_ptr_raw16 = bitcast [0 x i8*]* %env_aloc14 to i8**
+  store i8** %env_ptr_raw16, i8*** %env15
+  %app_rhs17 = alloca i64
+  %arg_ptr18 = bitcast i8* %0 to i64*
+  %arg19 = load i64, i64* %arg_ptr18
+  store i64 %arg19, i64* %app_rhs17
+  %raw_app_rhs20 = bitcast i64* %app_rhs17 to i8*
+  %raw_fn_ptr_ptr21 = getelementptr inbounds %clos, %clos* %app_lhs11, i32 0, i32 0
+  %raw_fn_ptr22 = load i8*, i8** %raw_fn_ptr_ptr21
+  %fn_ptr23 = bitcast i8* %raw_fn_ptr22 to %clos* (i8*, i8**)*
+  %args_ptr24 = getelementptr inbounds %clos, %clos* %app_lhs11, i32 0, i32 1
+  %args25 = load i8**, i8*** %args_ptr24
+  %app_res_ptr26 = call %clos* %fn_ptr23(i8* %raw_app_rhs20, i8** %args25)
+  %app_res27 = load %clos, %clos* %app_res_ptr26
+  store %clos %app_res27, %clos* %app_lhs10
+  %app_rhs28 = alloca i64
+  store i64 1, i64* %app_rhs28
+  %raw_app_rhs29 = bitcast i64* %app_rhs28 to i8*
+  %raw_fn_ptr_ptr30 = getelementptr inbounds %clos, %clos* %app_lhs10, i32 0, i32 0
+  %raw_fn_ptr31 = load i8*, i8** %raw_fn_ptr_ptr30
+  %fn_ptr32 = bitcast i8* %raw_fn_ptr31 to i64* (i8*, i8**)*
+  %args_ptr33 = getelementptr inbounds %clos, %clos* %app_lhs10, i32 0, i32 1
+  %args34 = load i8**, i8*** %args_ptr33
+  %app_res_ptr35 = call i64* %fn_ptr32(i8* %raw_app_rhs29, i8** %args34)
+  %app_res36 = load i64, i64* %app_res_ptr35
+  store i64 %app_res36, i64* %app_rhs9
+  %raw_app_rhs37 = bitcast i64* %app_rhs9 to i8*
+  %raw_fn_ptr_ptr38 = getelementptr inbounds %clos, %clos* %app_lhs3, i32 0, i32 0
+  %raw_fn_ptr39 = load i8*, i8** %raw_fn_ptr_ptr38
+  %fn_ptr40 = bitcast i8* %raw_fn_ptr39 to i64* (i8*, i8**)*
+  %args_ptr41 = getelementptr inbounds %clos, %clos* %app_lhs3, i32 0, i32 1
+  %args42 = load i8**, i8*** %args_ptr41
+  %app_res_ptr43 = call i64* %fn_ptr40(i8* %raw_app_rhs37, i8** %args42)
+  %app_res44 = load i64, i64* %app_res_ptr43
+  store i64 %app_res44, i64* %app_rhs2
+  %raw_app_rhs45 = bitcast i64* %app_rhs2 to i8*
+  %raw_fn_ptr_ptr46 = getelementptr inbounds %clos, %clos* %app_lhs, i32 0, i32 0
+  %raw_fn_ptr47 = load i8*, i8** %raw_fn_ptr_ptr46
+  %fn_ptr48 = bitcast i8* %raw_fn_ptr47 to i64* (i8*, i8**)*
+  %args_ptr49 = getelementptr inbounds %clos, %clos* %app_lhs, i32 0, i32 1
+  %args50 = load i8**, i8*** %args_ptr49
+  %app_res_ptr51 = call i64* %fn_ptr48(i8* %raw_app_rhs45, i8** %args50)
+  %app_res52 = load i64, i64* %app_res_ptr51
+  store i64 %app_res52, i64* %rval_ptr
+  br label %end
+
+end:                                              ; preds = %brfalse, %brtrue
+  ret i64* %rval_ptr
+}
+
+declare i1 @__prim__unop__not(i1)
+
+declare i64 @__prim__unop__neg(i64)
+
+declare i1 @__prim__binop__or(i1, i1)
+
+declare i1 @__prim__binop__and(i1, i1)
+
+declare i1 @__prim__binop__neq(i64, i64)
+
+declare i1 @__prim__binop__lt(i64, i64)
+
+declare i1 @__prim__binop__leq(i64, i64)
+
+declare i1 @__prim__binop__eq(i64, i64)
+
+declare i1 @__prim__binop__gt(i64, i64)
+
+declare i1 @__prim__binop__geq(i64, i64)
+
+declare i64 @__prim__binop__divide(i64, i64)
+
+declare i64 @__prim__binop__times(i64, i64)
+
+declare i64 @__prim__binop__minus(i64, i64)
+
+declare i64 @__prim__binop__plus(i64, i64)
+
+declare i64 @print_int(i64)
+
+declare noalias i8* @malloc(i32)
+
+define void @main() {
+entry:
+  %retval = alloca i64
+  %app_lhs = alloca %clos
+  %clos_fn_ptr = getelementptr inbounds %clos, %clos* %app_lhs, i32 0, i32 0
+  store i8* bitcast (i64* (i8*, i8**)* @f to i8*), i8** %clos_fn_ptr
+  %malloccall = tail call i8* @malloc(i32 0)
+  %env_aloc = bitcast i8* %malloccall to [0 x i8*]*
+  %env = getelementptr inbounds %clos, %clos* %app_lhs, i32 0, i32 1
+  %env_ptr_raw = bitcast [0 x i8*]* %env_aloc to i8**
+  store i8** %env_ptr_raw, i8*** %env
+  %app_rhs = alloca i64
+  store i64 5, i64* %app_rhs
+  %raw_app_rhs = bitcast i64* %app_rhs to i8*
+  %raw_fn_ptr_ptr = getelementptr inbounds %clos, %clos* %app_lhs, i32 0, i32 0
+  %raw_fn_ptr = load i8*, i8** %raw_fn_ptr_ptr
+  %fn_ptr = bitcast i8* %raw_fn_ptr to i64* (i8*, i8**)*
+  %args_ptr = getelementptr inbounds %clos, %clos* %app_lhs, i32 0, i32 1
+  %args = load i8**, i8*** %args_ptr
+  %app_res_ptr = call i64* %fn_ptr(i8* %raw_app_rhs, i8** %args)
+  %app_res = load i64, i64* %app_res_ptr
+  store i64 %app_res, i64* %retval
+  %val = load i64, i64* %retval
+  %ign = call i64 @print_int(i64 %val)
+  ret void
+}
+

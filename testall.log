@@ -1,0 +1,5 @@
+###### Checking fac.lingo.out exists
+###### Testing fac.lingo 
+dune exec ./reg-tests/convert.exe fac
+diff ./reg-tests/fac.a.out ./reg-tests/fac.out
+###### FAILED

@@ -1,7 +1,8 @@
 #include <stdio.h>
-int print_int(long long t) {
-  printf("%lld\n", t);
-  return 0;
+int print_int(long long t)
+{
+    printf("%lld\n", t);
+    return 0;
 }
 int __prim__binop__and(int a, int b) { return a && b; }
 int __prim__binop__or(int a, int b) { return a || b; }

@@ -3,9 +3,9 @@ services:
         image: lingo
         volumes:
             - .:/home/lingo
-        command: >
-            bash -c "
-              dune build \
-              && dune exec ./tests/test_all.exe \
-              && dune clean  
-            "
+        # command: >
+        #     bash -c "
+        #       dune build \
+        #       && dune clean
+        #     "
+# docker-compose run bash -c "python3 ./reg-tests/RunTest.py args"

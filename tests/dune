@@ -1,7 +1,0 @@
-(executable
- (name test_all)
- (libraries lib hello_world typechecking))
-
-(rule
- (alias  runtest)
- (action (run ./test_all.exe)))
