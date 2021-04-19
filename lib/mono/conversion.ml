@@ -97,7 +97,7 @@ let fix prog =
     | Some ty -> ty, DbIndex (idx, ty)
     | None -> ty, DbIndex (idx, ty))
   | Global (global, ty) -> 
-    let ty' = List.assoc global (List.map (fun (name,ty,_) -> (name,ty)) prog.letdefs) in
+    let ty' = List.assoc global @@ (List.map (fun (name,ty,_) -> (name,ty)) prog.letdefs) @ prog.decls in
     let out_ty = pick_tys ty ty' in
     out_ty, Global (global, out_ty)
   | Binop (op, ty) -> 
@@ -154,7 +154,7 @@ let fix prog =
 let convert_prog sprog = 
   let initial_sprog = { 
     letdefs = []; 
-    main = Global ("unit", DataTy "Unit");
+    main = Int 0;
     datadefs = [];
     decls = [];
   } in

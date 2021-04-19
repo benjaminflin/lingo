@@ -78,7 +78,10 @@ let convert_mexpr name (prog : M.program) expr =
     let ca_list = List.map convert_calt ca_list in
     CCase (scrut, convert_mty scrut_mty, ca_list, convert_mty out_mty) 
   | M.DbIndex (idx, ty) -> CArg (idx, convert_mty ty)
-  | M.Global (name, _) -> CClos (name, [], [])
+  | M.Global (name, _) -> ( 
+    match List.assoc_opt name prog.decls with
+    | Some _ -> CClos ("__" ^ name ^ "__", [], []) 
+    | None -> CClos (name, [], []))
   | M.App (mexpr1, mty1, mexpr2, mty2, out_mty) -> 
     let expr1 = convert_mexpr mexpr1 in
     let expr2 = convert_mexpr mexpr2 in
@@ -184,16 +187,34 @@ let gen_ops () =
   !decls
 
 
-
 let rec convert_decl = function
 | M.Arr (in_mty, out_mty) -> 
   let tys, out_ty = convert_decl out_mty in
   (convert_mty in_mty :: tys), out_ty
 | mty -> [], convert_mty mty
+
+let decl_globals decls = 
+  let mk_globals (name, (ty_list, _)) =
+    let pname = "__" ^ name ^ "__" in 
+    let rec mk i arg_tys = function
+    | [] -> 
+      CCall (name, List.mapi (fun i ty -> CArg (i, ty), ty) arg_tys), List.hd arg_tys
+    | (ty::tys) -> 
+      let uname = unique_name pname in 
+      let expr, out_ty = mk (i+1) (ty::arg_tys) tys in
+      let len = List.length (ty::tys) in
+      globals := (uname, len, expr, out_ty)::!globals;
+      CClos (uname, List.mapi (fun i ty -> CArg (i, ty)) tys, tys), CClosT
+    in  
+    ignore @@ mk 0 [] ty_list   
+  in
+  List.iter mk_globals decls
+
 let convert_prog ({ main; letdefs; decls; datadefs } as prog: M.program) = 
   let expr = convert_mexpr "__main__" prog main in
   List.iter (fun (name, _, mexpr) -> ignore (convert_mexpr name prog mexpr)) letdefs;
   let decls = List.map (fun (name, ty) -> name, convert_decl ty) decls in
+  decl_globals decls;
   let datatys = List.map (
     fun (dname, cs) -> dname, List.map (
       fun (cname, tys) -> cname, List.map convert_mty tys) cs) datadefs

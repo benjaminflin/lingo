@@ -323,7 +323,7 @@ let rec extract_data_env = function
 let rec extract_global_env = function
 | (LetDef (global, ty, _))::defs -> (global,ty) :: extract_global_env defs
 | (DataDef _)::defs -> extract_global_env defs
-| _::defs -> extract_global_env defs
+| (LetDecl (global, ty))::defs -> (global, ty) :: extract_global_env defs
 | _ -> []
 
 let env_to_kenv env : KindChecker.kenv = { kind_env = []; data_env = env.data_env; }

@@ -5,3 +5,22 @@ STDOUT:
 STDERR: 
  Fatal error: exception Core.Typecheck.ExpectedAbs(_)
 
+TESTING lib.c.lingo...
+dune exec ./src/lingo.exe /Users/ben/workspace/lingo-2/reg-tests/src/lib.c.lingo returned 2
+STDOUT: 
+ 
+STDERR: 
+ Fatal error: exception Sys_error("/Users/ben/workspace/lingo-2/reg-tests/src/lib.c.lingo: No such file or directory")
+
+TESTING fac.lingo...
+...fac.lingo PASSED ✓
+TESTING fac.lingo...
+...fac.lingo PASSED ✓
+TESTING fac.lingo...
+/Users/ben/workspace/lingo-2/reg-tests/exec/fac.exe returned 120
+STDOUT: 
+ 
+STDERR: 
+ 
+TESTING fac.lingo...
+...fac.lingo PASSED ✓

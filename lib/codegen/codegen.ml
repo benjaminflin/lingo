@@ -14,7 +14,6 @@ let translate (prog : C.program) =
   (* Build LLVM types *)
   let i32_t       = L.i32_type context in
   let i64_t       = L.i64_type context in
-  let void_t      =  L.void_type context in 
   let char_t      = L.i8_type context in
   let i8_ptr_t  = L.pointer_type (L.i8_type context) in
   let bool_t      = L.i1_type context in
@@ -221,20 +220,17 @@ let translate (prog : C.program) =
   let build_global (name, _, cexpr, cty) = 
     let fn_def = List.assoc name function_vals in
     let builder = L.builder_at_end context (L.entry_block fn_def) in
-    let rval_ptr = L.build_alloca (ltype_of_type cty) "rval_ptr" builder in
+    let rval_ptr = L.build_malloc (ltype_of_type cty) "rval_ptr" builder in
     ignore (translate_cexpr fn_def builder rval_ptr (L.entry_block fn_def) [] cexpr);
     add_terminal builder (L.build_ret rval_ptr); 
   in
   List.iter build_global prog.globals;
-  let main_t = L.function_type void_t [||] in   
+  let main_t = L.function_type i64_t [||] in   
   let main_fn = L.define_function "main" main_t _module in
   let builder = L.builder_at_end context (L.entry_block main_fn) in
-  let rval = L.build_alloca (i64_t) "retval" builder in  
+  let rval = L.build_alloca (i64_t) "ret" builder in  
   ignore (translate_cexpr main_fn builder rval (L.entry_block main_fn) [] prog.main);
-  (match L.lookup_function "print_int" _module with
-  | Some fn -> ignore (L.build_call fn [| L.build_load rval "val" builder |] "ign" builder);
-  | None -> ());
-  add_terminal builder L.build_ret_void;
+  add_terminal builder (L.build_ret (L.build_load rval "retval" builder));
   _module 
 
 
