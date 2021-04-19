@@ -46,49 +46,47 @@ def run(args):
     args, returncode, stdout, stderr = \
         args, proc.returncode, proc.stdout, proc.stderr
     if returncode != 0:
-        print(f'{" ".join(args)} returned {returncode}')
-        print(f'STDOUT: \n {stdout}')
-        print(f'STDERR: \n {stderr}')
+        log(f'{" ".join(args)} returned {returncode}')
+        log(f'STDOUT: \n {stdout.decode("utf-8")}')
+        log(f'STDERR: \n {stderr.decode("utf-8")}')
         raise RunException(args, returncode, stdout, stderr)
     return stdout, stderr
 
 
-def log(msg):
-    print(msg)
-    with open(f'{cwd}/log.txt', 'a') as file:
+def log(msg, should_print=True):
+    if should_print:
+        print(msg)
+    with open(f'{cwd}/log.txt', 'a+') as file:
         file.write(msg + '\n')
 
 
 def get_llvm(src, llvm_file):
-    log("---GENERATING LLVM---")
     stdout, _ = run(["dune", "exec", f'./src/lingo.exe', f'{src_dir}/{src}'])
     with open(llvm_file, 'wb') as file:
         file.write(stdout)
 
 
 def build_asm(llvm_file, asm_file):
-    log("---GENERATING ASM---")
     run(["llc", llvm_file, "-o", asm_file])
 
 
 def build_exec(asm_file, exec_file):
-    log("---BUILDING EXEC---")
     run(["gcc", "-no-pie", asm_file, lib, "-o", exec_file])
 
 
 def run_exec(execu, out):
-    log("---RUNNING EXEC---")
     stdout, _ = run([execu])
     with open(out, 'w') as file:
         file.write(stdout.decode('utf-8'))
 
 
-def diff_output(expected, actual, out):
-    log("---DIFFING OUTPUT---")
+def diff_output(lingo_file, expected, actual, out):
     try:
         run(["diff", expected, actual])
+        log(f'...{lingo_file} PASSED ✓')
     except RunException as err:
         args, returncode, stdout, stderr = err.tuple()
+        log(f'...{lingo_file} FAILED ✕')
         log(f'Diff between {expected} and {actual}.')
         with open(out, 'wb') as file:
             file.write(stdout)
@@ -103,11 +101,12 @@ def run_test(src_file):
     out_file = f'{out_dir}/{src_file}.actual.out'
     diff_file = f'{diff_dir}/{src_file}.diff'
 
+    log(f'TESTING {lingo_file}...')
     get_llvm(lingo_file, llvm_file)
     build_asm(llvm_file, asm_file)
     build_exec(asm_file, execu_file)
     run_exec(execu_file, out_file)
-    diff_output(expected_out_file, out_file, diff_file)
+    diff_output(lingo_file, expected_out_file, out_file, diff_file)
 
 
 def clean():
@@ -123,7 +122,9 @@ def clean():
         if 'actual.out' in f_name:
             remove(f'{out_dir}/{f_name}')
 
-    remove(f'{cwd}/log.txt')
+    log = f'{cwd}/log.txt'
+    if path.exists(log):
+        remove(log)
 
 
 def make_dirs():
@@ -145,3 +146,5 @@ else:
         for in_src_file in listdir(src_dir):
             in_src_f, *rest = in_src_file.split('.lingo')
             run_test(in_src_f)
+
+    run(["dune", "clean"])
