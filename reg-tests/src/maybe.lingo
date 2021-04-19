@@ -9,4 +9,9 @@ foo' m
   : Maybe Int #One -> Int
   = case m of 
     Just i -> i;
+    _ -> 0; 
   ; 
+
+print_int : Int -> Int;
+main : Int = print_int (foo' (Just @Int #One 1));
+

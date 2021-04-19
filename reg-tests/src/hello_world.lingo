@@ -1,2 +1,2 @@
 print_int : Int -> Int;
-main : Int = 0;
+main : Int = print_int 0;
