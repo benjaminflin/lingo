@@ -1,0 +1,7 @@
+TESTING fac_fail.lingo...
+dune exec ./src/lingo.exe /home/lingo/reg-tests/src/fac_fail.lingo returned 2
+STDOUT: 
+ 
+STDERR: 
+ Fatal error: exception Core.Typecheck.ExpectedAbs(_)
+
