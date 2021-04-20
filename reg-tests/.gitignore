@@ -1,0 +1,5 @@
+llvm/
+exec/
+log.txt
+asm/
+diff/
