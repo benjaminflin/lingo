@@ -17,7 +17,7 @@ parser.add_argument("-asm", "--asm-dir", default=f'{cwd}/asm')
 parser.add_argument("-ex", "--exec-dir", default=f'{cwd}/exec')
 parser.add_argument("-out", "--out-dir", default=f'{cwd}/out')
 
-parser.add_argument("-lib", default=f'{cwd}/src/lib.c')
+parser.add_argument("-lib", default=f'{cwd}/lib.c')
 args = parser.parse_args()
 
 diff_dir = args.diff_dir

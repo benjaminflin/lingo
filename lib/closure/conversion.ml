@@ -8,6 +8,14 @@ type partial_prog = {
 module Tc = Core.Typecheck
 let (<<<) f g x = f (g x)
 
+let string_of_ty = function
+| CIntT -> "Int"
+| CBoolT -> "Bool"
+| CharT -> "Char"
+| CDataTy cname -> cname
+| CClosT -> "Clos"
+| BoxT -> "Box"
+
 module SM = Map.Make (String)
 let vars = ref SM.empty  
 let unique_name name = 
@@ -22,27 +30,38 @@ let convert_mty = function
 | M.BoxT -> BoxT
 | M.Arr _ -> CClosT 
 | _ -> raise ClosureError 
-let rec free_vars cutoff = function
-  | M.Lam (mexpr, _, _) -> free_vars (cutoff + 1) mexpr
-  | M.Case (mexpr, _, calt_list, _) -> 
-    free_vars cutoff mexpr 
-      @ List.concat (List.map (free_vars_calt cutoff) calt_list)
-  | M.DbIndex (idx, mty) -> if idx > cutoff then [idx, convert_mty mty] else []
-  | M.Let (mexpr1, _, mexpr2, _) ->
-    free_vars (cutoff + 1) mexpr1 @
-    free_vars (cutoff + 1) mexpr2
-  | M.App (mexpr1, _, mexpr2, _, _) ->
-    free_vars cutoff mexpr1 @ free_vars cutoff mexpr2
-  | M.Box (mexpr, _) -> free_vars cutoff mexpr 
-  | M.Unbox (mexpr, _) -> free_vars cutoff mexpr 
-  | M.If (mexpr1, mexpr2, mexpr3, _) -> 
-    free_vars cutoff mexpr1 
-    @ free_vars cutoff mexpr2
-    @ free_vars cutoff mexpr3
-  | _ -> []
-  and free_vars_calt cutoff = function
-  | M.Destructor (_, num_abstr, mexpr, _) -> free_vars (cutoff + num_abstr) mexpr
-  | M.Wildcard (mexpr, _) -> free_vars cutoff mexpr  
+
+
+module T = struct 
+  type t = (cindex * cty) 
+  let compare : t -> t -> int = fun x y -> compare (fst x) (fst y)
+end   
+module S = Set.Make (T) 
+let free_vars =
+  let dec_by c = 
+    S.filter_map (fun (idx,ty) -> if idx - c < 0 then None else Some (idx-c, ty)) 
+  in
+  let rec free_vars = function
+    | M.Lam (mexpr, _, _) -> dec_by 1 @@ free_vars mexpr
+    | M.Case (mexpr, _, calt_list, _) -> 
+      S.union (free_vars mexpr)
+        @@ List.fold_left S.union S.empty (List.map free_vars_calt calt_list)
+    | M.DbIndex (idx, mty) -> S.singleton (idx, convert_mty mty)
+    | M.Let (mexpr1, _, mexpr2, _) ->
+      S.union (free_vars mexpr1) (free_vars mexpr2)
+    | M.App (mexpr1, _, mexpr2, _, _) ->
+      S.union (free_vars mexpr1) (free_vars mexpr2)
+    | M.Box (mexpr, _) -> free_vars mexpr 
+    | M.Unbox (mexpr, _) -> free_vars mexpr 
+    | M.If (mexpr1, mexpr2, mexpr3, _) -> 
+      S.union (S.union (free_vars mexpr1)
+      (free_vars mexpr2)) @@ free_vars mexpr3
+    | _ -> S.empty 
+    and free_vars_calt = function
+    | M.Destructor (_, num_abstr, mexpr, _) -> 
+      dec_by num_abstr @@ free_vars mexpr
+    | M.Wildcard (mexpr, _) -> free_vars mexpr  
+  in S.elements <<< free_vars 
 
 let string_of_binop = function
 | Tc.Plus -> "plus" 
@@ -64,11 +83,11 @@ let string_of_unop = function
 let globals = ref []
 let convert_mexpr name (prog : M.program) expr = 
  let rec convert_mexpr = function
-  | M.Lam (mexpr, _in_mty, out_mty) -> 
+  | M.Lam (mexpr, _in_mty, out_mty) as self -> 
     let name = unique_name name in
     let expr = convert_mexpr mexpr in
-    let fvs = free_vars 0 mexpr in
-    let args = List.map (fun (i,t) -> CArg (i - 1, t)) @@ fvs in
+    let fvs = free_vars self in
+    let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in
     let fv_tys = List.map snd fvs in 
     let global = name, List.length fvs + 1, expr, convert_mty out_mty in
     globals := global::!globals; 
@@ -99,23 +118,21 @@ let convert_mexpr name (prog : M.program) expr =
     (match List.assoc_opt cname globals' with
     | Some _ -> CClos (cname, [], [])
     | None -> 
-      (* I don't know if I could make this more inefficient if I tried *)
-      let names = List.init (List.length cons_tys) (fun _ -> unique_name cname) in
-
-      let add_global i name =
-        let args = List.init (i+1) (fun k -> CArg (k, List.nth cons_tys k)) in
-        let arg_tys = (List.init (i+1) (fun k -> List.nth cons_tys k)) in
-
-        let expr, ty = 
-          if i < List.length names - 1 then
-            CClos (List.nth names (i + 1), args, (List.tl arg_tys)), CClosT
-          else
-            CConstruction (cname, args, dty), dty   
-        in
-        globals := (name, List.length arg_tys, expr, ty)::!globals;
+      let mk_globals =  
+        let rec mk i arg_tys = function
+        | [] -> 
+          let args = List.rev @@ List.mapi (fun i ty -> CArg (i, ty)) arg_tys in
+          CConstruction (cname, args, dty), dty 
+        | (ty::tys) -> 
+          let uname = unique_name cname in 
+          let expr, out_ty = mk (i+1) (ty::arg_tys) tys in
+          let len = List.length (ty::tys) in
+          globals := (uname, len, expr, out_ty)::!globals;
+          CClos (uname, List.mapi (fun i ty -> CArg (i, ty)) arg_tys, arg_tys), CClosT
+        in  
+        fst <<< mk 0 []
       in
-      List.iteri add_global names;
-      if List.length names == 0 then CConstruction (cname, [], dty) else CClos (cname, [], [])
+      mk_globals cons_tys
   ))
   | M.Binop (binop, _ty) -> 
     CClos ("__prim__" ^ string_of_binop binop , [], [])
@@ -194,17 +211,17 @@ let rec convert_decl = function
 | mty -> [], convert_mty mty
 
 let decl_globals decls = 
-  let mk_globals (name, (ty_list, _)) =
+  let mk_globals (name, (ty_list, out_ty)) =
     let pname = "__" ^ name ^ "__" in 
     let rec mk i arg_tys = function
     | [] -> 
-      CCall (name, List.mapi (fun i ty -> CArg (i, ty), ty) arg_tys), List.hd arg_tys
+      CCall (name, List.rev @@ List.mapi (fun i ty -> CArg (i, ty), ty) arg_tys), out_ty 
     | (ty::tys) -> 
       let uname = unique_name pname in 
       let expr, out_ty = mk (i+1) (ty::arg_tys) tys in
       let len = List.length (ty::tys) in
       globals := (uname, len, expr, out_ty)::!globals;
-      CClos (uname, List.mapi (fun i ty -> CArg (i, ty)) tys, tys), CClosT
+      CClos (uname, List.mapi (fun i ty -> CArg (i, ty)) arg_tys, arg_tys), CClosT
     in  
     ignore @@ mk 0 [] ty_list   
   in

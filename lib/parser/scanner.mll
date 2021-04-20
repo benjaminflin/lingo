@@ -48,6 +48,8 @@ rule tokenize = parse
 | "Unr"                                 { UNR }
 | "One"                                 { ONE }
 | digits as lxm                         { LITERAL(int_of_string lxm) }
+| '\'' ("\\0") '\'' 
+                                        { CHAR(char_of_int 0) }
 | '\'' ((digit | lchar | uchar) as lxm) '\''   
                                         { CHAR(lxm) }
 | lchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    
