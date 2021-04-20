@@ -49,7 +49,7 @@ let translate (prog : C.program) =
       cname, (i, def_struct_t cname ts) in
     List.concat @@ List.map (List.mapi cons_t <<< snd) prog.datatys
   in
-  let function_vals = List.map (fun ((name,_,_,_) as gl) -> name, create_function_t gl) prog.globals in
+  let function_vals = List.map (fun ((name,_,_,_) as gl) -> name, create_function_t gl) prog.funs in
   let create_decl (name, (arg_ctys, out_cty)) =  
     let fn_t = L.function_type (ltype_of_type out_cty) (Array.map ltype_of_type @@ Array.of_list arg_ctys) in
     L.declare_function name fn_t _module
@@ -217,14 +217,14 @@ let translate (prog : C.program) =
       L.build_store ret value_to_set builder 
     in translate_cexpr  
   in 
-  let build_global (name, _, cexpr, cty) = 
+  let build_fun (name, _, cexpr, cty) = 
     let fn_def = List.assoc name function_vals in
     let builder = L.builder_at_end context (L.entry_block fn_def) in
     let rval_ptr = L.build_malloc (ltype_of_type cty) "rval_ptr" builder in
     ignore (translate_cexpr fn_def builder rval_ptr (L.entry_block fn_def) [] cexpr);
     add_terminal builder (L.build_ret rval_ptr); 
   in
-  List.iter build_global prog.globals;
+  List.iter build_fun prog.funs;
   let main_t = L.function_type i64_t [||] in   
   let main_fn = L.define_function "main" main_t _module in
   let builder = L.builder_at_end context (L.entry_block main_fn) in

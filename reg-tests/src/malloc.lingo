@@ -23,7 +23,7 @@ alloc : Int -> (Mem -* ()) -> ()
       = \m. \f. f (prim_alloc m);
 
 drop : Mem -* ()
-     = \m. prim_drop m; 
+     = prim_drop; 
 
 stringToMem' : String -> Mem -> Int -> Mem
              = \s. \m. \i. case s of

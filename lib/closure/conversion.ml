@@ -3,7 +3,7 @@ open Cast
 exception NotImplemented
 exception ClosureError
 type partial_prog = {
-  globals: cglobaldef list;
+  funs: fundef list;
 }
 module Tc = Core.Typecheck
 let (<<<) f g x = f (g x)
@@ -80,27 +80,28 @@ let string_of_unop = function
 | Tc.Not -> "not"
 | Tc.Neg -> "neg"
 
-let globals = ref []
+let funs = ref []
 let convert_mexpr name (prog : M.program) expr = 
  let rec convert_mexpr = function
   | M.Lam (mexpr, _in_mty, out_mty) as self -> 
-    let name = unique_name name in
+    let name = unique_name ("fn_" ^ name) in
     let expr = convert_mexpr mexpr in
     let fvs = free_vars self in
     let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in
     let fv_tys = List.map snd fvs in 
     let global = name, List.length fvs + 1, expr, convert_mty out_mty in
-    globals := global::!globals; 
+    funs := global::!funs; 
     CClos (name, args, fv_tys)
   | M.Case (mscrut, scrut_mty, ca_list, out_mty) -> 
     let scrut = convert_mexpr mscrut in
     let ca_list = List.map convert_calt ca_list in
     CCase (scrut, convert_mty scrut_mty, ca_list, convert_mty out_mty) 
   | M.DbIndex (idx, ty) -> CArg (idx, convert_mty ty)
-  | M.Global (name, _) -> ( 
+  | M.Global (name, mty) -> ( 
+    let ty = convert_mty mty in
     match List.assoc_opt name prog.decls with
     | Some _ -> CClos ("__" ^ name ^ "__", [], []) 
-    | None -> CClos (name, [], []))
+    | None -> CApp (CClos (name, [], []), CClosT, CInt 0, CIntT, ty))
   | M.App (mexpr1, mty1, mexpr2, mty2, out_mty) -> 
     let expr1 = convert_mexpr mexpr1 in
     let expr2 = convert_mexpr mexpr2 in
@@ -114,8 +115,8 @@ let convert_mexpr name (prog : M.program) expr =
     let cons_tys = List.map convert_mty 
       @@ List.assoc cname @@ List.concat (List.map snd prog.datadefs) in
     let dty = CDataTy (fst @@ List.find (fun (_, d) -> List.mem cname (List.map fst d)) prog.datadefs) in
-    let globals' = List.map (fun (name,tyl,expr,ty) -> name, (tyl, expr, ty)) !globals in 
-    (match List.assoc_opt cname globals' with
+    let funs' = List.map (fun (name,tyl,expr,ty) -> name, (tyl, expr, ty)) !funs in 
+    (match List.assoc_opt cname funs' with
     | Some _ -> CClos (cname, [], [])
     | None -> 
       let mk_globals =  
@@ -127,7 +128,7 @@ let convert_mexpr name (prog : M.program) expr =
           let uname = unique_name cname in 
           let expr, out_ty = mk (i+1) (ty::arg_tys) tys in
           let len = List.length (ty::tys) in
-          globals := (uname, len, expr, out_ty)::!globals;
+          funs := (uname, len, expr, out_ty)::!funs;
           CClos (uname, List.mapi (fun i ty -> CArg (i, ty)) arg_tys, arg_tys), CClosT
         in  
         fst <<< mk 0 []
@@ -191,13 +192,13 @@ let gen_ops () =
     let clos1 = "__prim__" ^ name, 1, CClos ("__prim__" ^ name ^ "1", [CArg (0, in_ty)], [in_ty]), CClosT in
     let clos2 = "__prim__" ^ name ^ "1", 2, CCall ("__prim__binop__" ^ name, [CArg (1, in_ty), in_ty; CArg (0, in_ty), in_ty]), out_ty in
     decls := ("__prim__binop__" ^ name, ([in_ty; in_ty], out_ty))::!decls;
-    globals := clos1::clos2::!globals;
+    funs := clos1::clos2::!funs;
   in
   let gen_unop unop (in_ty, out_ty) =   
     let name = string_of_unop unop in
     let clos = "__prim__" ^ name, 1, CCall ("__prim__unop__" ^ name, [CArg (0, in_ty), in_ty]), out_ty in
     decls := ("__prim__unop__" ^ name, ([in_ty], out_ty))::!decls;
-    globals := clos::!globals;
+    funs := clos::!funs;
   in
   List.iter2 gen_binop binops binop_tys;
   List.iter2 gen_unop unops unop_tys;
@@ -220,7 +221,7 @@ let decl_globals decls =
       let uname = unique_name pname in 
       let expr, out_ty = mk (i+1) (ty::arg_tys) tys in
       let len = List.length (ty::tys) in
-      globals := (uname, len, expr, out_ty)::!globals;
+      funs := (uname, len, expr, out_ty)::!funs;
       CClos (uname, List.mapi (fun i ty -> CArg (i, ty)) arg_tys, arg_tys), CClosT
     in  
     ignore @@ mk 0 [] ty_list   
@@ -229,7 +230,8 @@ let decl_globals decls =
 
 let convert_prog ({ main; letdefs; decls; datadefs } as prog: M.program) = 
   let expr = convert_mexpr "__main__" prog main in
-  List.iter (fun (name, _, mexpr) -> ignore (convert_mexpr name prog mexpr)) letdefs;
+  let globals = List.map (fun (name, mty, mexpr) -> name, (convert_mexpr name prog mexpr, convert_mty mty)) letdefs in
+  List.iter (fun (name, (expr, ty)) -> funs := (name, 1, expr, ty)::!funs) globals;  
   let decls = List.map (fun (name, ty) -> name, convert_decl ty) decls in
   decl_globals decls;
   let datatys = List.map (
@@ -237,7 +239,7 @@ let convert_prog ({ main; letdefs; decls; datadefs } as prog: M.program) =
       fun (cname, tys) -> cname, List.map convert_mty tys) cs) datadefs
   in
   let decls = (gen_ops ()) @ decls in
-  let ret = { globals = !globals; main = expr; datatys = datatys; decls = decls } in
-  globals := [];
+  let ret = { funs = !funs; main = expr; datatys = datatys; decls = decls } in
+  funs := [];
   vars := SM.empty;
   ret

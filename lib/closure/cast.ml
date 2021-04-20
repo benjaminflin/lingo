@@ -28,12 +28,12 @@ and ccase_alt
   | CWildcard of cexpr * cty
 
 type ccons = cname * cty list
-type cglobaldef = cname * arglen * cexpr * cty
+type fundef = cname * arglen * cexpr * cty
 type cdataty = cname * ccons list
 type cclosuredef = cname * cty list  
 
 type program = {
-  globals : cglobaldef list;
+  funs : fundef list;
   datatys : cdataty list;
   decls : (cname * (cty list * cty)) list; 
   main : cexpr;
