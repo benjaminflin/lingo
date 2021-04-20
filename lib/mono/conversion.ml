@@ -78,7 +78,7 @@ let convert_sexpr datadefs =
     (match gen_arr_ty with
     | Arr (gen_in_ty, gen_out_ty) ->
         let ty2, expr2 = reconcile expr2 gen_in_ty exp_in_ty in 
-        reconcile (App (expr1, gen_arr_ty, expr2, ty2, exp_out_ty)) exp_out_ty gen_out_ty
+        reconcile (App (expr1, gen_arr_ty, expr2, ty2, gen_out_ty)) exp_out_ty gen_out_ty
     | _ -> raise MonoError
     )
   | S.TApp (sexpr, _, sty) ->

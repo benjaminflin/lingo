@@ -37,7 +37,7 @@ stringToMem : String -> (Mem -* ()) -> ()
 printAndDrop : Mem -* ()
              = \m. drop (print_string m);
 
-const : Int -> () -> Int
-      = \x. \y. x;
+const : @a @b a -> b -> a
+      = \a. \b. \x. \y. x;
 
-main : Int = const 0 (stringToMem (C 'h' (C 'i' E)) printAndDrop);  
+main : Int = const @Int @Unit 0 (stringToMem (C 'h' (C 'i' E)) printAndDrop);  
