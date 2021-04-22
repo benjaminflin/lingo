@@ -1,0 +1,8 @@
+data Animal where
+    Cow : Int -> Animal;
+    Horse : Int -> Animal;
+
+main : Int = 
+    case (Cow 0) of 
+        Horse i -> i;
+    ;

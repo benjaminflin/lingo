@@ -65,9 +65,12 @@ let convert_sexpr datadefs =
     convert_sty sty, Binop (op, convert_sty sty)
   | S.Unop (op, sty) -> 
     convert_sty sty, Unop (op, convert_sty sty)
-  | S.Let (sexpr1, _, sexpr2, _) ->
-    let ty1, expr1 = convert_sexpr tys sexpr1 in
-    let ty2, expr2 = convert_sexpr tys sexpr2 in
+  | S.Let (sexpr1, sty1, sexpr2, sty2) ->
+    let exp_ty1, exp_ty2 = convert_sty sty1, convert_sty sty2 in  
+    let gen_ty1, expr1 = convert_sexpr tys sexpr1 in
+    let gen_ty2, expr2 = convert_sexpr tys sexpr2 in
+    let ty1, expr1 = reconcile expr1 exp_ty1 gen_ty1 in
+    let ty2, expr2 = reconcile expr2 exp_ty2 gen_ty2 in
     ty2, Let (expr1, ty1, expr2, ty2)
 
   | S.App (sexpr1, _, sexpr2, in_sty, out_sty) ->

@@ -1,0 +1,7 @@
+print_int : Int -> Int;
+
+main : Int = 
+    let fac : Int -> Int = \x. if x == 0 then 1 else x * fac (x - 1) in
+    let x : Int = 1 in 
+    let y : Int = 2 in 
+    print_int (fac (x + y));

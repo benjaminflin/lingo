@@ -93,7 +93,7 @@ app_term:
 
 atomic_term:
 | LPAREN infer_expr RPAREN      { $2 }
-| UNIT                          { Construction("unit") } 
+| UNIT                          { Construction("Unit") } 
 | LID                           { Var($1) }
 | UID                           { Construction($1) }
 | LITERAL                       { Int($1) }

@@ -32,6 +32,56 @@ let convert_mty = function
 | M.Arr _ -> CClosT 
 | _ -> raise ClosureError 
 
+let beta_reduce mexpr1 mexpr2 = 
+  let rec shift cutoff amount = function
+  | M.Lam (mexpr, in_mty, out_mty) -> 
+    M.Lam (shift (cutoff + 1) amount mexpr, in_mty, out_mty)  
+  | M.DbIndex(idx, ty) as self -> if idx < cutoff then self else M.DbIndex(idx - amount, ty)
+  | M.Case (mscrut, mty, mcalts, out_mty) -> 
+    M.Case (shift cutoff amount mscrut, mty, List.map (shift_case amount cutoff) mcalts, out_mty)
+  | M.Let (mexpr1, mty1, mexpr2, mty2) -> 
+    M.Let (shift (cutoff + 1) amount mexpr1, mty1, shift (cutoff + 1) amount mexpr2, mty2) 
+  | M.Box (mexpr, mty) -> 
+    M.Box (shift cutoff amount mexpr, mty) 
+  | M.Unbox (mexpr, mty) ->  
+    M.Unbox (shift cutoff amount mexpr, mty)  
+  | M.If (mexpr1, mexpr2, mexpr3, mty) ->
+    M.If (shift cutoff amount mexpr1, shift cutoff amount mexpr2, shift cutoff amount mexpr3, mty)
+  | M.App (mexpr1, mty1, mexpr2, mty2, out_mty) ->
+    M.App (shift cutoff amount mexpr1, mty1, shift cutoff amount mexpr2, mty2, out_mty)
+  | a -> a 
+  and shift_case cutoff amount = function
+  | M.Destructor (name, num_abstr, mexpr, out_mty) ->
+    M.Destructor (name, num_abstr, shift (cutoff + num_abstr) amount mexpr, out_mty)
+  | M.Wildcard (mexpr, ty) ->
+    M.Wildcard (shift cutoff amount mexpr, ty)
+  in 
+  let rec subst expr idx = function
+  | M.Lam (mexpr, in_mty, out_mty) -> 
+    M.Lam (subst (shift 0 1 expr) (idx + 1) mexpr, in_mty, out_mty)  
+  | M.DbIndex(i, _) as self -> if i == idx then expr else self 
+  | M.Case (mscrut, mty, mcalts, out_mty) -> 
+    M.Case (subst expr idx mscrut, mty, List.map (subst_case expr idx) mcalts, out_mty)
+  | M.Let (mexpr1, mty1, mexpr2, mty2) -> 
+    M.Let (subst (shift 0 1 expr) (idx + 1) mexpr1, mty1, subst (shift 0 1 expr) (idx + 1) mexpr2, mty2) 
+  | M.Box (mexpr, mty) -> 
+    M.Box (subst expr idx mexpr, mty) 
+  | M.Unbox (mexpr, mty) ->  
+    M.Unbox (subst expr idx mexpr, mty)  
+  | M.If (mexpr1, mexpr2, mexpr3, mty) ->
+    M.If (subst expr idx mexpr1, subst expr idx mexpr2, subst expr idx mexpr3, mty)
+  | M.App (mexpr1, mty1, mexpr2, mty2, out_mty) ->
+    M.App (subst expr idx mexpr1, mty1, subst expr idx mexpr2, mty2, out_mty)
+  | a -> a 
+  and subst_case expr idx = function
+  | M.Destructor (name, num_abstr, mexpr, out_mty) ->
+    M.Destructor (name, num_abstr, subst (shift 0 num_abstr expr) (idx + num_abstr) mexpr, out_mty)
+  | M.Wildcard (mexpr, ty) ->
+    M.Wildcard (subst expr idx mexpr, ty)
+  in
+  shift 0 (-1) (subst (shift 0 1 mexpr2) 0 mexpr1)
+
+
 
 module T = struct 
   type t = (cindex * cty) 
@@ -49,7 +99,7 @@ let free_vars =
         @@ List.fold_left S.union S.empty (List.map free_vars_calt calt_list)
     | M.DbIndex (idx, mty) -> S.singleton (idx, convert_mty mty)
     | M.Let (mexpr1, _, mexpr2, _) ->
-      S.union (free_vars mexpr1) (free_vars mexpr2)
+      S.union (free_vars mexpr1) (dec_by 1 @@ free_vars mexpr2)
     | M.App (mexpr1, _, mexpr2, _, _) ->
       S.union (free_vars mexpr1) (free_vars mexpr2)
     | M.Box (mexpr, _) -> free_vars mexpr 
@@ -83,10 +133,10 @@ let string_of_unop = function
 
 let funs = ref []
 let convert_mexpr name (prog : M.program) expr = 
- let rec convert_mexpr = function
+ let rec convert = function
   | M.Lam (mexpr, _in_mty, out_mty) as self -> 
     let name = unique_name ("fn_" ^ name) in
-    let expr = convert_mexpr mexpr in
+    let expr = convert mexpr in
     let fvs = free_vars self in
     let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in
     let fv_tys = List.map snd fvs in 
@@ -94,7 +144,7 @@ let convert_mexpr name (prog : M.program) expr =
     funs := global::!funs; 
     CClos (name, args, fv_tys)
   | M.Case (mscrut, scrut_mty, ca_list, out_mty) -> 
-    let scrut = convert_mexpr mscrut in
+    let scrut = convert mscrut in
     let ca_list = List.map convert_calt ca_list in
     CCase (scrut, convert_mty scrut_mty, ca_list, convert_mty out_mty) 
   | M.DbIndex (idx, ty) -> CArg (idx, convert_mty ty)
@@ -104,11 +154,11 @@ let convert_mexpr name (prog : M.program) expr =
     | Some _ -> CClos ("__" ^ name ^ "__", [], []) 
     | None -> CApp (CClos (name, [], []), CClosT, CInt 0, CIntT, ty))
   | M.App (mexpr1, mty1, mexpr2, mty2, out_mty) -> 
-    let expr1 = convert_mexpr mexpr1 in
-    let expr2 = convert_mexpr mexpr2 in
+    let expr1 = convert mexpr1 in
+    let expr2 = convert mexpr2 in
     CApp (expr1, convert_mty mty1, expr2, convert_mty mty2, convert_mty out_mty)
-  | M.Box (mexpr, mty) -> Box (convert_mexpr mexpr, convert_mty mty) 
-  | M.Unbox (mexpr, mty) -> Unbox (convert_mexpr mexpr, convert_mty mty) 
+  | M.Box (mexpr, mty) -> Box (convert mexpr, convert_mty mty) 
+  | M.Unbox (mexpr, mty) -> Unbox (convert mexpr, convert_mty mty) 
   | M.Int i -> CInt i
   | M.Bool i -> CBool i
   | M.Char i -> CChar i
@@ -141,19 +191,42 @@ let convert_mexpr name (prog : M.program) expr =
   | M.Unop (unop, _ty) ->
     CClos ("__prim__" ^ string_of_unop unop, [], [])
   | M.If (mexpr1, mexpr2, mexpr3, out_mty) ->
-    let expr1 = convert_mexpr mexpr1 in
-    let expr2 = convert_mexpr mexpr2 in
-    let expr3 = convert_mexpr mexpr3 in
+    let expr1 = convert mexpr1 in
+    let expr2 = convert mexpr2 in
+    let expr3 = convert mexpr3 in
     CIf (expr1, expr2, expr3, convert_mty out_mty)
-  | M.Let (_mexpr1, _mty1, _mexpr2, _mty2) -> raise NotImplemented
+  | M.Let (mexpr1, mty1, mexpr2, mty2) ->
+    (* let x = e in y ~> (\x. y) e *)
+    (* let f x = e in y ~> (\f. y) (\f. \x. e) *) 
+    let name1 = unique_name name in 
+    let name2 = unique_name name in 
+    let mexpr1 = beta_reduce mexpr1 (M.Global (name1, mty1)) in
+    let expr2 = convert mexpr2 in
+    let expr1 = (match mty1 with
+    | M.Arr (_, _) -> 
+      let fvs = free_vars mexpr1 in
+      let expr1 = convert mexpr1 in
+      let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in
+      let fv_tys = List.map snd fvs in 
+      let fn = name, List.length fvs + 1, expr1, CClosT in
+      funs := fn::!funs; 
+      CApp (CClos (name1, args, fv_tys), CClosT, CInt 0, CIntT, CClosT) 
+    | _ -> convert mexpr1) in
+    let fvs = free_vars @@ M.Lam (mexpr2, mty1, mty2) in
+    let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in
+    let fv_tys = List.map snd fvs in 
+    let ty2 = convert_mty mty2 in 
+    let fn = name2, List.length fvs + 1, expr2, ty2 in
+    funs := fn::!funs;
+    CApp (CClos (name2, args, fv_tys), CClosT, expr1, convert_mty mty1, ty2)
   and convert_calt = function
   | M.Destructor (name, num_abstr, mexpr, mty) ->
-    let expr = convert_mexpr mexpr in
+    let expr = convert mexpr in
     CDestructor (name, num_abstr, expr, convert_mty mty)
   | M.Wildcard (mexpr, mty) ->
-    let expr = convert_mexpr mexpr in
+    let expr = convert mexpr in
     CWildcard (expr, convert_mty mty)
-  in convert_mexpr expr
+  in convert expr
 
 
 let gen_ops () = 

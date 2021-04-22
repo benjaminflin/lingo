@@ -20,9 +20,7 @@ dune exec ./tests/test_all.exe
 ```
 
 TODO:
-- Close over let expressions and generate code for them 
-    - Two separate cases for recursive/non-recursive
-    - Note: dbindex 0 refers to self inside let expr
 - Produce implicit wildcard which calls `die()` for all case statements
 - Fix substitution issue in typechecker 
 - Clean up code in general
+- add stdlin to beginning of all files

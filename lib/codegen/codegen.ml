@@ -15,6 +15,7 @@ let translate (prog : C.program) =
   let i32_t       = L.i32_type context in
   let i64_t       = L.i64_type context in
   let char_t      = L.i8_type context in
+  let void_t      = L.void_type context in
   let i8_ptr_t  = L.pointer_type (L.i8_type context) in
   let bool_t      = L.i1_type context in
   let decl_struct_t name = L.named_struct_type context name in
@@ -25,6 +26,7 @@ let translate (prog : C.program) =
   in
   let adt_t = def_struct_t "adt" [i64_t; i8_ptr_t] in
   let clos_t = def_struct_t "clos" [i8_ptr_t; L.pointer_type i8_ptr_t] in
+  let die_function = L.declare_function "__die__" (L.function_type void_t [||]) _module in
   let add_terminal builder instr =
       (match L.block_terminator (L.insertion_block builder) with
         Some _ -> ()
@@ -166,10 +168,10 @@ let translate (prog : C.program) =
       let scrut_data = L.build_struct_gep scrut_var 1 "scrut_data" builder in
       let scrut_tag = L.build_load scrut_tag_ptr "switch_tag" builder in
       let brend = L.append_block context "case_continue" fn in
-      let first_wc = List.find (fun x ->
+      let first_wc = List.find_map (fun x ->
         match x with 
-        | C.CWildcard   _ -> true
-        | C.CDestructor _ -> false
+        | C.CWildcard   (cexpr, _) -> Some cexpr 
+        | C.CDestructor _ -> None
       ) calts in
       let destructors = List.filter_map (fun x ->
         match x with
@@ -178,10 +180,12 @@ let translate (prog : C.program) =
       in
       let default_bb = L.append_block context "default" fn in
       L.position_at_end default_bb builder; 
-      let default_expr = (match first_wc with
-        | C.CWildcard (cexpr, _) -> cexpr
-        | _ -> raise CodegenError) in
-      ignore (translate_cexpr value_to_set default_bb extra_args default_expr);
+      (match first_wc with
+        | Some default_expr -> 
+        ignore (translate_cexpr value_to_set default_bb extra_args default_expr);
+        | _ -> 
+        ignore (L.build_call (die_function) [||] "" builder);
+        );
       ignore (L.build_br brend builder);
       L.position_at_end bb builder; 
       let switch = L.build_switch scrut_tag default_bb (List.length calts) builder in

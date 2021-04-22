@@ -30,7 +30,8 @@ RUN opam switch create 4.12.0
 RUN opam install -yq \
     llvm.10.0.0 \
     ocaml \
-    dune
+    dune \
+    utop
 
 
 
