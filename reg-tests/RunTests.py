@@ -102,10 +102,16 @@ def run_test(src_file):
     diff_file = f'{diff_dir}/{src_file}.diff'
 
     log(f'TESTING {lingo_file}...')
-    get_llvm(lingo_file, llvm_file)
-    build_asm(llvm_file, asm_file)
-    build_exec(asm_file, execu_file)
-    run_exec(execu_file, out_file)
+    try:
+        get_llvm(lingo_file, llvm_file)
+        build_asm(llvm_file, asm_file)
+        build_exec(asm_file, execu_file)
+        run_exec(execu_file, out_file)
+    except RunException as err:
+        args, returncode, stdout, stderr = err.tuple()
+        with open(out_file, 'w') as file:
+            file.write(stderr.decode('utf-8'))
+
     diff_output(lingo_file, expected_out_file, out_file, diff_file)
 
 
