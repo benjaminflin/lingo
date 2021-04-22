@@ -1,11 +1,5 @@
 services:
     lingo_testbed:
-        image: lingo
+        image: lingo:version2
         volumes:
             - .:/home/lingo
-        # command: >
-        #     bash -c "
-        #       dune build \
-        #       && dune clean
-        #     "
-# docker-compose run bash -c "python3 ./reg-tests/RunTest.py args"

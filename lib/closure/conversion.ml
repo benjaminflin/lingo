@@ -1,4 +1,5 @@
 module M = Mono.Mast
+
 open Cast
 exception NotImplemented
 exception ClosureError
@@ -39,7 +40,7 @@ end
 module S = Set.Make (T) 
 let free_vars =
   let dec_by c = 
-    S.filter_map (fun (idx,ty) -> if idx - c < 0 then None else Some (idx-c, ty)) 
+    S.filter_map (fun (idx,ty) -> if idx - c < 0 then None else Some (idx-c, ty))
   in
   let rec free_vars = function
     | M.Lam (mexpr, _, _) -> dec_by 1 @@ free_vars mexpr

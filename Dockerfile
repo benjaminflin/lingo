@@ -26,10 +26,12 @@ RUN apt-get -yq update && \
 # RUN ln -s /usr/bin/llc-10 /usr/bin/llc
 
 RUN opam init -yq --disable-sandboxing --reinit
+RUN opam switch create 4.12.0
 RUN opam install -yq \
     llvm.10.0.0 \
     ocaml \
     dune
+
 
 
 WORKDIR /home/lingo
