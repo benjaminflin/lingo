@@ -22,4 +22,4 @@ dune exec ./tests/test_all.exe
 TODO:
 - Fix substitution issue in typechecker 
 - Clean up code in general
-- add stdlin to beginning of all files
+- add stdlib to beginning of all files

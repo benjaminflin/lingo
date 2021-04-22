@@ -58,9 +58,6 @@ def run(args):
     args, returncode, stdout, stderr = \
         args, proc.returncode, proc.stdout, proc.stderr
     if returncode != 0:
-        log(f'{" ".join(args)} returned {returncode}')
-        log(f'STDOUT: \n {stdout.decode("utf-8")}')
-        log(f'STDERR: \n {stderr.decode("utf-8")}')
         raise RunException(args, returncode, stdout, stderr)
     return stdout, stderr
 
@@ -98,8 +95,12 @@ def diff_output(lingo_file, expected, actual, out):
         log(f'{bcolors.OKGREEN}...{lingo_file} PASSED ✓{bcolors.ENDC}\n')
     except RunException as err:
         args, returncode, stdout, stderr = err.tuple()
-        log(f'{bcolors.FAIL}...{lingo_file} FAILED ✕{bcolors.FAIL}\n')
-        log(f'Diff between {expected} and {actual}.')
+        log(f'{" ".join(args)} returned {returncode}')
+        log(f'STDOUT: \n {stdout.decode("utf-8")}')
+        log(f'STDERR: \n {stderr.decode("utf-8")}')
+        log(f'{bcolors.FAIL}Diff between {expected} and {actual}.{bcolors.ENDC}')
+        log(f'{bcolors.FAIL}...{lingo_file} FAILED ✕{bcolors.ENDC}\n')
+
         with open(out, 'wb') as file:
             file.write(stdout)
 

@@ -492,10 +492,10 @@ let rec check env ty constr = function
       dec_uenv uenv, reduce_constraints @@ (LE (simp actual_mult, simp expected_mult))::constr, S.Lam (sexpr, S.ty_to_sty in_ty, S.ty_to_sty out_ty)   
     | Forall (ty') -> 
       let uenv, constr, sexpr = check env ty' constr cexpr in
-      uenv, constr, S.TLam (sexpr, S.ty_to_sty ty)
+      dec_uenv uenv, constr, S.TLam (sexpr, S.ty_to_sty ty)
     | ForallM (ty') -> 
       let uenv, constr, sexpr = check env ty' constr cexpr in
-      uenv, constr, S.shift 0 (-1) sexpr
+      dec_uenv uenv, constr, S.shift 0 (-1) sexpr
     | ty -> raise @@ ExpectedAbs ty
   )
 | Case (iexpr, calts) -> 
@@ -617,14 +617,14 @@ and infer env constr = function
   let lhs_ty, uenv, constr, sexpr1 = infer env constr iexpr in
   (match lhs_ty with
   | ForallM ty ->  
-    subst_mult_ty (0, mult) ty, uenv, reduce_constraints @@ subst_mult_constr_list (0, mult) constr, sexpr1
+    shift_ty 0 (-1) (subst_mult_ty (0, shift_mult 0 1 mult) ty), uenv, reduce_constraints @@ subst_mult_constr_list (0, mult) constr, sexpr1
   | t -> raise @@ ExpectedForallM t)
 
 | TApp (iexpr, ty) ->
   let lhs_ty, uenv, constr, sexpr = infer env constr iexpr in
   (match lhs_ty with
   | Forall ty' -> 
-    let out_ty = subst_ty_ty (0, ty) ty' in
+    let out_ty = shift_ty 0 (-1) (subst_ty_ty (0, shift_ty 0 1 ty) ty') in
     out_ty, uenv, constr, S.TApp (sexpr, S.ty_to_sty ty, S.ty_to_sty out_ty)  
   | t -> raise @@ ExpectedForall t)
 
@@ -669,3 +669,7 @@ let check_prog prog =
             } in
   List.map (check_def env) prog 
  
+
+
+  (* f : #p (Int -p> Int) -> Int -p> Int = \p. \f. \x. f x *)
+  (* compose : #p #q @a @b @c (b -p> c) -> (a -q> b) -> a -p*q> c = \p. \q. \a. \b. \c. \f. \g. \x. f (g x)  *)  
