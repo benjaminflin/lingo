@@ -163,10 +163,12 @@ let convert_mexpr name (prog : M.program) expr =
   | M.Bool i -> CBool i
   | M.Char i -> CChar i
   | M.Construction (cname, _mty) -> ( 
+
     let cons_tys = List.map convert_mty 
       @@ List.assoc cname @@ List.concat (List.map snd prog.datadefs) in
     let dty = CDataTy (fst @@ List.find (fun (_, d) -> List.mem cname (List.map fst d)) prog.datadefs) in
     let funs' = List.map (fun (name,tyl,expr,ty) -> name, (tyl, expr, ty)) !funs in 
+
     (match List.assoc_opt cname funs' with
     | Some _ -> CClos (cname, [], [])
     | None -> 

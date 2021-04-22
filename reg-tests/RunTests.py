@@ -41,6 +41,18 @@ class RunException(Exception):
         return self.args, self.returncode, self.stdout, self.stderr
 
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def run(args):
     proc = subprocess.run(args, capture_output=True)
     args, returncode, stdout, stderr = \
@@ -83,10 +95,10 @@ def run_exec(execu, out):
 def diff_output(lingo_file, expected, actual, out):
     try:
         run(["diff", expected, actual])
-        log(f'...{lingo_file} PASSED ✓')
+        log(f'{bcolors.OKGREEN}...{lingo_file} PASSED ✓{bcolors.ENDC}\n')
     except RunException as err:
         args, returncode, stdout, stderr = err.tuple()
-        log(f'...{lingo_file} FAILED ✕')
+        log(f'{bcolors.FAIL}...{lingo_file} FAILED ✕{bcolors.FAIL}\n')
         log(f'Diff between {expected} and {actual}.')
         with open(out, 'wb') as file:
             file.write(stdout)
@@ -101,7 +113,7 @@ def run_test(src_file):
     out_file = f'{out_dir}/{src_file}.actual.out'
     diff_file = f'{diff_dir}/{src_file}.diff'
 
-    log(f'TESTING {lingo_file}...')
+    log(f'{bcolors.WARNING}---------- TESTING {lingo_file}... ----------{bcolors.ENDC}')
     try:
         get_llvm(lingo_file, llvm_file)
         build_asm(llvm_file, asm_file)
@@ -116,7 +128,7 @@ def run_test(src_file):
 
 
 def clean():
-    print("CLEANING...")
+    print(f'{bcolors.OKCYAN}CLEANING...{bcolors.ENDC}')
     # Get Rid of llvm, asm, exec, diff, .actual.out
 
     to_delete = [llvm_dir, asm_dir, exec_dir, diff_dir]

@@ -53,9 +53,9 @@ rule tokenize = parse
 | '\'' ((digit | lchar | uchar) as lxm) '\''   
                                         { CHAR(lxm) }
 | lchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    
-                                        { LID(lxm) }
+                                        { LID(String.map (fun x -> if x = '\'' then '-' else x) lxm) }
 | uchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    
-                                        { UID(lxm) }
+                                        { UID(String.map (fun x -> if x = '\'' then '-' else x) lxm) }
 | eof                                   { EOF }
 | _ as char { raise (Failure("illegal character " ^ Char.escaped char ))}
 

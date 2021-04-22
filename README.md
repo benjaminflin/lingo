@@ -20,7 +20,6 @@ dune exec ./tests/test_all.exe
 ```
 
 TODO:
-- Produce implicit wildcard which calls `die()` for all case statements
 - Fix substitution issue in typechecker 
 - Clean up code in general
 - add stdlin to beginning of all files
