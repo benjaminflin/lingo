@@ -25,14 +25,14 @@ alloc : Int -> (Mem -* ()) -> ()
 drop : Mem -* ()
      = prim_drop; 
 
-stringToMem_ : String -> Mem -* Int -> Mem
+stringToMem' : String -> Mem -* Int -> Mem
              = \s. \m. \i. case s of
-                    C c s -> stringToMem_ s (set_bit m i c) (i + 1);
+                    C c s -> stringToMem' s (set_bit m i c) (i + 1);
                     _ -> set_bit m i '\0';
             ;
 
 stringToMem : String -> (Mem -* ()) -> ()
-            = \s. \f. alloc (1 + len s) (\m. f (stringToMem_ s m 0));
+            = \s. \f. alloc (1 + len s) (\m. f (stringToMem' s m 0));
 
 printAndDrop : Mem -* ()
              = \m. drop (print_string m);
