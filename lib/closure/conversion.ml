@@ -21,8 +21,8 @@ module SM = Map.Make (String)
 let vars = ref SM.empty  
 let unique_name name = 
   match SM.find_opt name !vars with
-  | Some i -> vars := SM.add name (i+1) !vars; name ^ string_of_int i  
-  | None -> vars := SM.add name 1 !vars; name
+  | Some i -> vars := SM.add name (Random.int64 (Int64.max_int)) !vars; name ^ Int64.to_string i  
+  | None -> vars := SM.add name (Random.int64 (Int64.max_int)) !vars; name
 let convert_mty = function
 | M.IntT -> CIntT 
 | M.CharT -> CharT

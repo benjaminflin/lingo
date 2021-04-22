@@ -95,7 +95,7 @@ def diff_output(lingo_file, expected, actual, out):
 def run_test(src_file):
     lingo_file = f'{src_file}.lingo'
     llvm_file = f'{llvm_dir}/{src_file}.llvm'
-    asm_file = f'{llvm_dir}/{src_file}.s'
+    asm_file = f'{asm_dir}/{src_file}.s'
     execu_file = f'{exec_dir}/{src_file}.exe'
     expected_out_file = f'{out_dir}/{src_file}.out'
     out_file = f'{out_dir}/{src_file}.actual.out'
@@ -136,6 +136,7 @@ def make_dirs():
 
 if args.clean:
     clean()
+    run(["dune", "clean"])
 else:
     make_dirs()
     run(["dune", "build"])
