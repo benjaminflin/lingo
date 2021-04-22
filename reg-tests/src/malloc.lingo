@@ -3,11 +3,11 @@ data Mem where
 data Unit where
     Unit : Unit; 
 
-prim_alloc : Int -> Mem;
+prim_alloc : Int -* Mem;
 prim_drop : Mem -* ();
 print_string : Mem -* Mem;
 print_int : Int -> Int;
-set_bit : Mem -> Int -> Char -> Mem;
+set_bit : Mem -* Int -> Char -> Mem;
 
 data String where
     E : String;
@@ -25,7 +25,7 @@ alloc : Int -> (Mem -* ()) -> ()
 drop : Mem -* ()
      = prim_drop; 
 
-stringToMem_ : String -> Mem -> Int -> Mem
+stringToMem_ : String -> Mem -* Int -> Mem
              = \s. \m. \i. case s of
                     C c s -> stringToMem_ s (set_bit m i c) (i + 1);
                     _ -> set_bit m i '\0';
