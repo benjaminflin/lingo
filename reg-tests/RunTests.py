@@ -70,7 +70,8 @@ def log(msg, should_print=True):
 
 
 def get_llvm(src, llvm_file):
-    stdout, _ = run(["dune", "exec", f'./src/lingo.exe', f'{src_dir}/{src}'])
+    stdout, _ = run(
+        ["dune", "exec", f'{"./src/lingo.exe"}', f'{src_dir}/{src}'])
     with open(llvm_file, 'wb') as file:
         file.write(stdout)
 
@@ -102,7 +103,8 @@ def diff_output(lingo_file, expected, actual, out):
         log(f'{" ".join(args)} returned {returncode}')
         log(f'STDOUT: \n {stdout.decode("utf-8")}')
         log(f'STDERR: \n {stderr.decode("utf-8")}')
-        log(f'{bcolors.FAIL}Diff between {expected} and {actual}.{bcolors.ENDC}')
+        log(f'{bcolors.FAIL}Diff between {expected} '
+            f'and {actual}.{bcolors.ENDC}')
         log(f'{bcolors.FAIL}...{lingo_file} FAILED ✕{bcolors.ENDC}\n')
 
         with open(out, 'wb') as file:
@@ -126,7 +128,7 @@ def run_test(src_file):
         build_exec(asm_file, execu_file)
         run_exec(execu_file, out_file)
     except RunException as err:
-        args, returncode, stdout, stderr = err.tuple()
+        _, _, _, stderr = err.tuple()
         with open(out_file, 'w') as file:
             file.write(stderr.decode('utf-8'))
 

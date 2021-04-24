@@ -1,9 +1,22 @@
 #!/bin/bash
 dune build
-LLVM=$(dune exec ./lingo.exe $1)
+
+# Get Base Name
+FILE="$1"
+FILE_NO_EXT=${FILE%.*}
+BASE=$(basename $FILE_NO_EXT)
+
+# Compile LLVM
+LLVM=$(dune exec ./lingo.exe $FILE)
+
+# Compile ASM
 ASM=$(echo "$LLVM" | llc)
 echo "$ASM" | gcc -c -x assembler -o temp.o -
+
+# Compile to Binary and link
 gcc -c -o lib.o ../reg-tests/lib.c
-gcc -no-pie -o binary lib.o temp.o
+gcc -no-pie -o "$BASE" lib.o temp.o
+
+# Clean Up
 rm temp.o lib.o
 dune clean
