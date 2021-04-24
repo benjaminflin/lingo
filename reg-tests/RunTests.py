@@ -1,9 +1,9 @@
-import pdb
 from os import listdir, getcwd, mkdir, path, remove
 import argparse
 import subprocess
 from shutil import rmtree
 
+FAIL = False
 
 cwd = f'{getcwd()}/reg-tests'
 parser = argparse.ArgumentParser(
@@ -95,6 +95,10 @@ def diff_output(lingo_file, expected, actual, out):
         log(f'{bcolors.OKGREEN}...{lingo_file} PASSED ✓{bcolors.ENDC}\n')
     except RunException as err:
         args, returncode, stdout, stderr = err.tuple()
+
+        global FAIL
+        FAIL = True
+
         log(f'{" ".join(args)} returned {returncode}')
         log(f'STDOUT: \n {stdout.decode("utf-8")}')
         log(f'STDERR: \n {stderr.decode("utf-8")}')
@@ -114,7 +118,8 @@ def run_test(src_file):
     out_file = f'{out_dir}/{src_file}.actual.out'
     diff_file = f'{diff_dir}/{src_file}.diff'
 
-    log(f'{bcolors.WARNING}---------- TESTING {lingo_file}... ----------{bcolors.ENDC}')
+    log(f'{bcolors.WARNING}---------- TESTING '
+        f'{lingo_file}... ----------{bcolors.ENDC}')
     try:
         get_llvm(lingo_file, llvm_file)
         build_asm(llvm_file, asm_file)
@@ -168,3 +173,6 @@ else:
             run_test(in_src_f)
 
     run(["dune", "clean"])
+
+if FAIL:
+    exit(1)
