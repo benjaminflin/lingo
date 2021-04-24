@@ -156,7 +156,7 @@ arrow:
 | DASH mult GT { $2 } 
 
 mult:
-| atomic_mult STAR atomic_mult  { MTimes($1, $3) }
+| mult STAR mult                { MTimes($1, $3) }
 | atomic_mult                   { $1 }
 
 atomic_mult:

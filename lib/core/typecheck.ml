@@ -366,13 +366,18 @@ let rec union_with f l = function
   | Some v2 -> (x, f v1 v2)::(union_with f (List.remove_assoc x l) xs)
   | None -> (x, v1)::(union_with f l xs)) 
 
-let rec simp = function
-  | MTimes (a, One)  -> simp a
-  | MTimes (One, a)  -> simp a
+let simp = 
+  let rec simp' = function
+  | MTimes (a, One)  -> simp' a
+  | MTimes (One, a)  -> simp' a
   | MTimes (Unr, _)  -> Unr
   | MTimes (_, Unr)  -> Unr
-  | MTimes (a, b)    -> MTimes (simp a, simp b)
-  | a                -> a
+  | a -> a 
+  in
+  let rec simp = function
+  | MTimes (a, b)    -> simp' (MTimes (simp a, simp b))
+  | a                -> simp' a
+  in simp
 
 let add_usage x y = union_with (fun _ _ -> Unr) x y
 let multiply_usage x y = union_with (fun a b -> MTimes (a, b)) x y
@@ -474,14 +479,35 @@ let rec is_polymorphic = function
 | MTimes (a, b) -> is_polymorphic a || is_polymorphic b
 
 let check_constraint actual_mult expected_mult = 
-  let rec eq a b = match (a, b) with
-  | MTimes (a, b), MTimes (a', b') -> (eq a a' && eq b b') || (eq a b' && eq b a')
-  | (a, b) -> a = b 
+  let rec leq a b = match (a, b) with
+  | MTimes (MTimes (a, b), c), MTimes (MTimes (a', b'), c') -> assoc_leq a b c a' b' c' 
+  | MTimes (a,  MTimes (b, c)), MTimes (MTimes (a', b'), c') -> assoc_leq a b c a' b' c' 
+  | MTimes (MTimes (a, b), c), MTimes (a',  MTimes (b', c')) -> assoc_leq a b c a' b' c' 
+  | MTimes (a,  MTimes (b, c)), MTimes (a',  MTimes (b', c')) -> assoc_leq a b c a' b' c' 
+  | MTimes (((MVar _) as a), ((MVar _) as b)), MTimes (((MVar _) as a'), ((MVar _) as b')) -> (leq a a' && leq b b') || (leq a b' && leq b a')
+  | MTimes (a, b), ((MVar _) as c) -> (leq a c && leq b c)  
+  | a, MTimes (b, MTimes (c, d)) -> leq a (MTimes (b, c)) || leq a (MTimes (b, d)) || leq a (MTimes (c, d)) 
+  | a, MTimes (MTimes (b, c), d) -> leq a (MTimes (b, c)) || leq a (MTimes (b, d)) || leq a (MTimes (c, d))
+  | a, MTimes (b, c) -> leq a b || leq a c
+  | (MVar a, MVar b) -> a = b 
+  | (_, Unr) -> true 
+  | (Unr, _) -> false
+  | (One, One) -> true 
+  | (One, _) -> false
+  | (_, One) -> false
+  and assoc_leq a b c a' b' c' = 
+    (leq a a' && leq b b' && leq c c') ||
+    (leq a a' && leq b c' && leq c b') ||
+    (leq a b' && leq b c' && leq c a') ||
+    (leq a b' && leq b a' && leq c c') ||
+    (leq a c' && leq b b' && leq c a') ||
+    (leq a c' && leq b a' && leq c b') 
   in
-  match (simp actual_mult, simp expected_mult) with
-    | (One, One) -> ();
-    | (_, Unr) -> ();
-    | (a, b) -> if eq a b then () else raise @@ MultMismatch (a, b) 
+  let a, b = simp actual_mult, simp expected_mult in
+  if leq a b then
+    ()
+  else
+    raise @@ MultMismatch (a, b)
 
 let rec check env ty = function
 | Lam cexpr -> 
@@ -672,7 +698,7 @@ let check_prog prog =
     List.map (check_def env) prog 
   with 
   | MultMismatch (a, b) as self -> 
-    Printf.eprintf "%s\n" ("Multiplicity Mismatch: " ^ string_of_mult a ^ " /= " ^ string_of_mult b);
+    Printf.eprintf "%s\n" ("Multiplicity Mismatch: " ^ string_of_mult a ^ " > " ^ string_of_mult b);
     raise self
   | TypeMismatch (a, b) as self ->
     Printf.eprintf "%s\n" ("Type Mismatch: " ^ string_of_ty a ^ " /= " ^ string_of_ty b);
