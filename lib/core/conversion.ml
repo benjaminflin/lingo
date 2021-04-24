@@ -140,7 +140,7 @@ and convert_case_alt dbmap = function
 | Ast.Destructor (name, name_list, iexpr) -> 
   Tc.Destructor ( name, 
                   List.length name_list, 
-                  convert_infer_expr (name_list @ dbmap) iexpr
+                  convert_infer_expr ((List.rev name_list) @ dbmap) iexpr
                 ) 
 
 | Ast.Wildcard (iexpr) -> 

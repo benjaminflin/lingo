@@ -5,6 +5,8 @@ let digit = ['0'-'9']
 let digits = digit+
 let lchar = ['a'-'z']
 let uchar = ['A'-'Z']
+let schar = [ ^ '"' ]
+let cchar = [ ^ '\'' ]
 
 rule tokenize = parse
   [' ' '\t' '\r' '\n']                  { tokenize lexbuf }
@@ -48,10 +50,10 @@ rule tokenize = parse
 | "Unr"                                 { UNR }
 | "One"                                 { ONE }
 | digits as lxm                         { LITERAL(int_of_string lxm) }
-| '\'' ("\\0") '\'' 
-                                        { CHAR(char_of_int 0) }
-| '\'' ((digit | lchar | uchar) as lxm) '\''   
+| '"' ((schar*) as lxm) '"'             { STRING (lxm) } 
+| '\'' (cchar as lxm) '\'' 
                                         { CHAR(lxm) }
+| '\'' ((cchar*) as lxm) '\''           { CHAR(String.get (Scanf.unescaped lxm) 0) }
 | lchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    
                                         { LID(String.map (fun x -> if x = '\'' then '-' else x) lxm) }
 | uchar+ (digit | lchar | uchar | '_')* ('\'')* as lxm    

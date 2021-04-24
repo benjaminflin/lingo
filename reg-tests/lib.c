@@ -1,10 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
+
 typedef struct adt
 {
     long long tag;
     char *data;
 } ADT;
+
+typedef struct box
+{
+    char *a;
+    char *b;
+} Box;
+
+typedef struct tuple 
+{
+    Box a;
+    Box b;
+} Tuple;
 ADT unit = (ADT){.tag = 0, .data = NULL};
 long long print_int(long long t)
 {
@@ -34,6 +47,39 @@ ADT set_bit(ADT adt, long long i, char c)
 char *believe_me(char *x)
 {
     return x;
+}
+ADT open_file(ADT filename, ADT filemode) 
+{
+    FILE *fp = fopen(filename.data, filemode.data);
+    char *data = (char*) fp;
+    return (ADT) {.tag = 0, .data = data};
+}
+
+ADT read_file(ADT file) 
+{
+    FILE *fp = (FILE *)file.data;
+    fseek(fp, 0L, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+    char *data = malloc(size);
+    fread(data, 1, size, fp);
+    Tuple *tup = malloc(sizeof(Tuple));
+    ADT mem;
+    mem.tag = 0; 
+    mem.data = data; 
+    ADT file2;
+    file2.tag = 0;
+    file2.data = (char *)fp;
+    tup->a = *((Box *)&mem);
+    tup->b = *((Box *)&file2);
+    return (ADT) {.tag = 0, .data = (char *)tup};
+}
+
+ADT close_file(ADT file)
+{
+    FILE* fp = (FILE*)file.data;
+    fclose(fp);
+    return unit;
 }
 
 int __prim__binop__and(int a, int b) { return a && b; }

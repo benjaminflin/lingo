@@ -36,9 +36,10 @@ let beta_reduce mexpr1 mexpr2 =
   let rec shift cutoff amount = function
   | M.Lam (mexpr, in_mty, out_mty) -> 
     M.Lam (shift (cutoff + 1) amount mexpr, in_mty, out_mty)  
-  | M.DbIndex(idx, ty) as self -> if idx < cutoff then self else M.DbIndex(idx - amount, ty)
+  | M.DbIndex(idx, ty) as self -> 
+    if idx < cutoff then self else M.DbIndex(idx + amount, ty)
   | M.Case (mscrut, mty, mcalts, out_mty) -> 
-    M.Case (shift cutoff amount mscrut, mty, List.map (shift_case amount cutoff) mcalts, out_mty)
+    M.Case (shift cutoff amount mscrut, mty, List.map (shift_case cutoff amount) mcalts, out_mty)
   | M.Let (mexpr1, mty1, mexpr2, mty2) -> 
     M.Let (shift (cutoff + 1) amount mexpr1, mty1, shift (cutoff + 1) amount mexpr2, mty2) 
   | M.Box (mexpr, mty) -> 
@@ -59,7 +60,8 @@ let beta_reduce mexpr1 mexpr2 =
   let rec subst expr idx = function
   | M.Lam (mexpr, in_mty, out_mty) -> 
     M.Lam (subst (shift 0 1 expr) (idx + 1) mexpr, in_mty, out_mty)  
-  | M.DbIndex(i, _) as self -> if i == idx then expr else self 
+  | M.DbIndex(i, _) as self -> 
+    if i == idx then expr else self 
   | M.Case (mscrut, mty, mcalts, out_mty) -> 
     M.Case (subst expr idx mscrut, mty, List.map (subst_case expr idx) mcalts, out_mty)
   | M.Let (mexpr1, mty1, mexpr2, mty2) -> 
@@ -147,7 +149,8 @@ let convert_mexpr name (prog : M.program) expr =
     let scrut = convert mscrut in
     let ca_list = List.map convert_calt ca_list in
     CCase (scrut, convert_mty scrut_mty, ca_list, convert_mty out_mty) 
-  | M.DbIndex (idx, ty) -> CArg (idx, convert_mty ty)
+  | M.DbIndex (idx, ty) -> 
+    CArg (idx, convert_mty ty)
   | M.Global (name, mty) -> ( 
     let ty = convert_mty mty in
     match List.assoc_opt name prog.decls with
@@ -200,6 +203,7 @@ let convert_mexpr name (prog : M.program) expr =
   | M.Let (mexpr1, mty1, mexpr2, mty2) ->
     (* let x = e in y ~> (\x. y) e *)
     (* let f x = e in y ~> (\f. y) (\f. \x. e) *) 
+    let _ = unique_name name in
     let name1 = unique_name name in 
     let name2 = unique_name name in 
     let mexpr1 = beta_reduce mexpr1 (M.Global (name1, mty1)) in
@@ -210,7 +214,7 @@ let convert_mexpr name (prog : M.program) expr =
       let expr1 = convert mexpr1 in
       let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in
       let fv_tys = List.map snd fvs in 
-      let fn = name, List.length fvs + 1, expr1, CClosT in
+      let fn = name1, List.length fvs + 1, expr1, CClosT in
       funs := fn::!funs; 
       CApp (CClos (name1, args, fv_tys), CClosT, CInt 0, CIntT, CClosT) 
     | _ -> convert mexpr1) in

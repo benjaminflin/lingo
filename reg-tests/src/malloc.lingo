@@ -28,7 +28,7 @@ drop : Mem -* ()
 stringToMem' : String -> Mem -* Int -> Mem
              = \s. \m. \i. case s of
                     C c s -> stringToMem' s (set_bit m i c) (i + 1);
-                    _ -> set_bit m i '\0';
+                    _ -> set_bit m i '\000';
             ;
 
 stringToMem : String -> (Mem -* ()) -> ()
@@ -40,4 +40,4 @@ printAndDrop : Mem -* ()
 const : @a @b a -> b -> a
       = \a. \b. \x. \y. x;
 
-main : Int = const @Int @Unit 0 (stringToMem (C 'h' (C 'i' E)) printAndDrop);  
+main : Int = const @Int @Unit 0 (stringToMem "hi" printAndDrop);  

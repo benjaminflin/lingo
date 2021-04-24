@@ -546,7 +546,7 @@ let rec check env ty = function
               let substs = List.combine (range (List.length scrut_ty_params)) (List.rev scrut_ty_params)
               in
               subst_param_list_mult substs m, 
-              subst_param_list_ty substs t) calt_params  
+              subst_param_list_ty substs t) (List.rev calt_params)
       in
 
       (* Infer type of rhs given the params introduced by the case alt *)
@@ -631,7 +631,7 @@ and infer env = function
   let ty', uenv2, sexpr2
     = infer (extend_env ty env) iexpr
   in
-  ty', add_usage (dec_uenv uenv1) (scale_usage mult (dec_uenv uenv2)), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
+  ty', add_usage (dec_uenv uenv2) (scale_usage mult (dec_uenv uenv1)), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
 
 | App (iexpr, cexpr) ->
   let ty, uenv1, sexpr1 = infer env iexpr in 

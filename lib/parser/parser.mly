@@ -1,5 +1,8 @@
 %{ 
 open Ast 
+let build_string str =  
+    let explode s = List.init (String.length s) (String.get s) in
+    List.fold_left (fun cons ch -> App(App(Construction "C", Infer (Char ch)), Infer cons)) (Construction "E") (List.rev @@ explode str)
 %}
 
 %token COLON SEMICOLON WILDCARD BACKSLASH LPAREN RPAREN UNIT BACKTICK DOT
@@ -11,6 +14,7 @@ open Ast
 %token <bool>   BOOL 
 %token <string> UID LID
 %token <char>   CHAR
+%token <string> STRING
 
 %token  EOF
 
@@ -99,6 +103,7 @@ atomic_term:
 | LITERAL                       { Int($1) }
 | BOOL                          { Bool($1) }
 | CHAR                          { Char($1) }
+| STRING                        { build_string ($1) }
 | FORALL atomic_ty              { Type($2) } 
 | FORALLM atomic_mult           { Mult($2) }
 

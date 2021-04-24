@@ -133,9 +133,9 @@ let translate (prog : C.program) =
       L.build_store app_res value_to_set builder  
     | C.CArg (idx, cty) -> 
       let len = List.length extra_args in 
-      if idx < len then 
+      if idx < len then ( 
         L.build_store (List.nth extra_args idx) value_to_set builder
-      else if idx - len == 0 then
+      ) else if idx - len == 0 then
         let ptr = L.build_bitcast (L.param fn 0) (L.pointer_type @@ ltype_of_type cty) "arg_ptr" builder in 
         let arg = L.build_load ptr "arg" builder in
         L.build_store arg value_to_set builder
@@ -198,7 +198,7 @@ let translate (prog : C.program) =
         let extra_args' = List.init (num_abstr) (fun i -> 
           L.build_load (L.build_struct_gep cons_ptr i "cons_destruct_ptr" builder) "cons_destruct" builder) in
         L.add_case switch (L.const_int i64_t cons_tag) case_bb;
-        let expr = translate_cexpr value_to_set case_bb (extra_args' @ extra_args) cexpr in
+        let expr = translate_cexpr value_to_set case_bb ((List.rev extra_args') @ extra_args) cexpr in
         ignore (L.build_br brend builder);
         L.position_at_end bb builder;
         expr

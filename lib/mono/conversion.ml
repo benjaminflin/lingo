@@ -36,8 +36,8 @@ let reconcile expr exp_ty gen_ty =
 let convert_sexpr datadefs = 
   let rec convert_sexpr tys = function
   | S.Lam (sexpr, in_sty, out_sty) ->
-    let gen_out_ty, expr = convert_sexpr tys sexpr in
     let in_ty = convert_sty in_sty in
+    let gen_out_ty, expr = convert_sexpr (in_ty::tys) sexpr in
     let exp_out_ty = convert_sty out_sty in
     let out_ty, expr = reconcile expr exp_out_ty gen_out_ty in
     Arr (in_ty, out_ty), Lam (expr, in_ty, out_ty)
@@ -67,8 +67,8 @@ let convert_sexpr datadefs =
     convert_sty sty, Unop (op, convert_sty sty)
   | S.Let (sexpr1, sty1, sexpr2, sty2) ->
     let exp_ty1, exp_ty2 = convert_sty sty1, convert_sty sty2 in  
-    let gen_ty1, expr1 = convert_sexpr tys sexpr1 in
-    let gen_ty2, expr2 = convert_sexpr tys sexpr2 in
+    let gen_ty1, expr1 = convert_sexpr (exp_ty1::tys) sexpr1 in
+    let gen_ty2, expr2 = convert_sexpr (exp_ty1::tys) sexpr2 in
     let ty1, expr1 = reconcile expr1 exp_ty1 gen_ty1 in
     let ty2, expr2 = reconcile expr2 exp_ty2 gen_ty2 in
     ty2, Let (expr1, ty1, expr2, ty2)
@@ -106,7 +106,7 @@ let convert_sexpr datadefs =
   | S.Destructor (name, num_abstr, sexpr, _) ->
     let all_cons = List.concat (List.map snd datadefs) in
     let tys' = List.assoc name all_cons in
-    let gen_ty, expr = convert_sexpr (tys' @ tys) sexpr in
+    let gen_ty, expr = convert_sexpr (List.rev tys' @ tys) sexpr in
     let ty, expr = reconcile expr exp_ty gen_ty in 
     ty, Destructor (name, num_abstr, expr, ty) 
 
