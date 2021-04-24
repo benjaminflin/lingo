@@ -1,0 +1,9 @@
+#!/bin/bash
+dune build
+LLVM=$(dune exec ./lingo.exe $1)
+ASM=$(echo "$LLVM" | llc)
+echo "$ASM" | gcc -c -x assembler -o temp.o -
+gcc -c -o lib.o ../reg-tests/lib.c
+gcc -no-pie -o binary lib.o temp.o
+rm temp.o lib.o
+dune clean
