@@ -16,7 +16,7 @@ let translate (prog : C.program) =
   let i64_t       = L.i64_type context in
   let char_t      = L.i8_type context in
   let void_t      = L.void_type context in
-  let i8_ptr_t  = L.pointer_type (L.i8_type context) in
+  let i8_ptr_t    = L.pointer_type (L.i8_type context) in
   let bool_t      = L.i1_type context in
   let decl_struct_t name = L.named_struct_type context name in
   let def_struct_t name fields =  
@@ -25,6 +25,7 @@ let translate (prog : C.program) =
     llstruct_t
   in
   let adt_t = def_struct_t "adt" [i64_t; i8_ptr_t] in
+  let box_t = def_struct_t "boxt" [i8_ptr_t; i8_ptr_t] in
   let clos_t = def_struct_t "clos" [i8_ptr_t; L.pointer_type i8_ptr_t] in
   let die_function = L.declare_function "__die__" (L.function_type void_t [||]) _module in
   let add_terminal builder instr =
@@ -39,7 +40,7 @@ let translate (prog : C.program) =
   | C.CharT         -> char_t
   | C.CDataTy _     -> adt_t 
   | C.CClosT        -> clos_t
-  | C.BoxT          -> i8_ptr_t 
+  | C.BoxT          -> box_t 
   in
   let create_function_t (cname, _, _, cty) = 
     let fun_t = L.function_type (L.pointer_type @@ ltype_of_type cty) ([| i8_ptr_t; L.pointer_type i8_ptr_t |]) in
@@ -93,13 +94,13 @@ let translate (prog : C.program) =
     | C.Box (cexpr, cty) ->
       let unbox = L.build_alloca (ltype_of_type cty) "unbox" builder in
       ignore (translate_cexpr unbox bb extra_args cexpr);
-      let box = L.build_bitcast unbox i8_ptr_t "box" builder in
-      L.build_store box value_to_set builder
+      let box_ptr = L.build_bitcast unbox (L.pointer_type box_t) "box_ptr" builder in
+      let box_val = L.build_load box_ptr "box_val" builder in 
+      L.build_store box_val value_to_set builder
     | C.Unbox (cexpr, cty) ->
-      let boxed = L.build_alloca i8_ptr_t "boxed" builder in
+      let boxed = L.build_alloca box_t "boxed" builder in
       ignore (translate_cexpr boxed bb extra_args cexpr);
-      let unbox_ptr_ptr = L.build_bitcast boxed (L.pointer_type @@ L.pointer_type @@ ltype_of_type cty) "unbox_ptr_ptr" builder in
-      let unbox_ptr = L.build_load unbox_ptr_ptr "unbox_ptr" builder in
+      let unbox_ptr = L.build_bitcast boxed (L.pointer_type @@ ltype_of_type cty) "unbox_ptr" builder in
       let unbox_val = L.build_load unbox_ptr "unbox_val" builder in
       L.build_store unbox_val value_to_set builder
     | C.CClos (cname, env, env_tys) ->

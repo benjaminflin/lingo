@@ -1,0 +1,5 @@
+print_int : Int -> Int;
+succ : Int -> Int = \x. x + 1;
+compose p q a b c f g x : #p #q @a @b @c (b -p> c) -> (a -q> b) -> a -p*q> c = f (g x);
+id : Int -> Int = \x. x;
+main : Int = (compose #Unr #Unr @Int @Int @Int print_int succ) 100;

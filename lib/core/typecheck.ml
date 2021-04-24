@@ -371,7 +371,7 @@ let rec simp = function
   | MTimes (One, a)  -> simp a
   | MTimes (Unr, _)  -> Unr
   | MTimes (_, Unr)  -> Unr
-  | MTimes (a, b)    -> simp (MTimes (simp a, simp b))
+  | MTimes (a, b)    -> MTimes (simp a, simp b)
   | a                -> a
 
 let add_usage x y = union_with (fun _ _ -> Unr) x y
@@ -474,17 +474,15 @@ let rec is_polymorphic = function
 | MTimes (a, b) -> is_polymorphic a || is_polymorphic b
 
 let check_constraint actual_mult expected_mult = 
-  if is_polymorphic (simp expected_mult) then 
-    match simp actual_mult with
-    | One -> ()
-    | Unr -> raise @@ MultMismatch (actual_mult, expected_mult)  
-    | _ -> raise InternalTypechekerError 
-  else
-    match (simp actual_mult, simp expected_mult) with
+  let rec eq a b = match (a, b) with
+  | MTimes (a, b), MTimes (a', b') -> (eq a a' && eq b b') || (eq a b' && eq b a')
+  | (a, b) -> a = b 
+  in
+  match (simp actual_mult, simp expected_mult) with
     | (One, One) -> ();
-    | (Unr, Unr) -> ();
-    | (One, Unr) -> ();
-    | (a, b) -> raise @@ MultMismatch (a, b) 
+    | (_, Unr) -> ();
+    | (a, b) -> if eq a b then () else raise @@ MultMismatch (a, b) 
+
 let rec check env ty = function
 | Lam cexpr -> 
   (match ty with
@@ -679,8 +677,3 @@ let check_prog prog =
   | TypeMismatch (a, b) as self ->
     Printf.eprintf "%s\n" ("Type Mismatch: " ^ string_of_ty a ^ " /= " ^ string_of_ty b);
     raise self
- 
-
-
-  (* f : #p (Int -p> Int) -> Int -p> Int = \p. \f. \x. f x *)
-  (* compose : #p #q @a @b @c (b -p> c) -> (a -q> b) -> a -p*q> c = \p. \q. \a. \b. \c. \f. \g. \x. f (g x)  *)  
