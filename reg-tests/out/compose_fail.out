@@ -1,0 +1,2 @@
+Multiplicity Mismatch: #5*#4 > One
+Fatal error: exception Core.Typecheck.MultMismatch(_, 0)

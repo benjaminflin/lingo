@@ -7,14 +7,14 @@ FILE_NO_EXT=${FILE%.*}
 BASE=$(basename $FILE_NO_EXT)
 
 # Compile LLVM
-LLVM=$(dune exec ./lingo.exe $FILE)
+LLVM=$(dune exec src/lingo.exe $FILE)
 
 # Compile ASM
 ASM=$(echo "$LLVM" | llc)
 echo "$ASM" | gcc -c -x assembler -o temp.o -
 
 # Compile to Binary and link
-gcc -c -o lib.o ../reg-tests/lib.c
+gcc -c -o lib.o lib/lib.c
 gcc -no-pie -o "$BASE" lib.o temp.o
 
 # Clean Up

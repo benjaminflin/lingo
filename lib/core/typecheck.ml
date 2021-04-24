@@ -202,14 +202,14 @@ let rec string_of_mult = function
 | One -> "One"
 | Unr -> "Unr"
 | MTimes (a, b) -> string_of_mult a ^ "*" ^ string_of_mult b
-| MVar a -> string_of_int a
+| MVar a -> "#" ^ string_of_int a
 
 let rec string_of_ty = function
 | BaseT (IntT) -> "Int" 
 | BaseT (BoolT) ->"Bool" 
 | BaseT (CharT) -> "Char" 
 | DataTy (ty, params) -> ty ^ " " ^ List.fold_left (fun s p -> s ^ " " ^ string_of_param p) "" params
-| TVar t -> string_of_int t 
+| TVar t -> "#" ^ string_of_int t 
 | Arr (m, s, t) -> "(" ^ string_of_ty s ^ " -" ^ string_of_mult m ^ "> " ^ string_of_ty t ^ ")"
 | Forall (t) -> "@ (" ^ string_of_ty t ^ ")"
 | ForallM (t) -> "# (" ^ string_of_ty t ^ ")"
