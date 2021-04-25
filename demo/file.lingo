@@ -53,6 +53,7 @@ printFile : String -> String -> ()
               case (readFile file) of 
                 Tuple str file -> 
                   let x : Mem = printString str in   
+                  let y : () = closeFile file in
                   closeFile file;
             in
             openFile filename mode f;

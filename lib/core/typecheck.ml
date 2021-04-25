@@ -75,6 +75,7 @@ type env =
     global_env : (global * ty) list;
     kind_env   : (global * kind) list;
     data_env   : data_def list;
+    lam_count   : int;
   }
 
 type program = def list
@@ -513,6 +514,7 @@ let rec check env ty = function
 | Lam cexpr -> 
   (match ty with
     | Arr (expected_mult, in_ty, out_ty) ->
+      let env = { env with lam_count = env.lam_count + 1 } in 
       let uenv, sexpr
         = check (extend_env in_ty env) out_ty cexpr 
       in
@@ -643,6 +645,7 @@ and infer env = function
 
 | MApp (iexpr, mult) ->
   let lhs_ty, uenv, sexpr1 = infer env iexpr in
+  let mult = shift_mult 0 (-env.lam_count) mult in
   (match lhs_ty with
   | ForallM ty ->  
     shift_ty 0 (-1) (subst_mult_ty (0, shift_mult 0 1 mult) ty), uenv, sexpr1
@@ -650,6 +653,7 @@ and infer env = function
 
 | TApp (iexpr, ty) ->
   let lhs_ty, uenv, sexpr = infer env iexpr in
+  let ty = shift_ty 0 (-env.lam_count) ty in
   (match lhs_ty with
   | Forall ty' -> 
     let out_ty = shift_ty 0 (-1) (subst_ty_ty (0, shift_ty 0 1 ty) ty') in
@@ -694,6 +698,7 @@ let check_prog prog =
                 global_env = global_env; 
                 data_env = data_env;
                 kind_env = []; 
+                lam_count = 0;
               } in
     List.map (check_def env) prog 
   with 
