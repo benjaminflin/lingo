@@ -1,0 +1,7 @@
+print_int : Int -> Int;
+succ x : Int -* Int = x + 1;
+
+compose p q a b c f g x : #p #q @a @b @c (b -p> c) -> (a -q> b) -> a -p*q> c = f (g x);
+main : Int = 
+    let f : Int -* Int = \x. (compose #Unr #One @Int @Int @Int print_int succ) x
+    in f 100;

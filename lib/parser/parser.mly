@@ -127,6 +127,7 @@ bin_operation:
 | bterm NEQ bterm       { App(App(Binop(Neq), Infer($1)), Infer($3)) }
 | bterm LEQ bterm       { App(App(Binop(Leq), Infer($1)), Infer($3)) }
 | bterm GT bterm        { App(App(Binop(Gt), Infer($1)), Infer($3)) }
+| bterm LT bterm        { App(App(Binop(Lt), Infer($1)), Infer($3)) }
 | bterm GEQ bterm       { App(App(Binop(Geq), Infer($1)), Infer($3)) }
 
 

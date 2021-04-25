@@ -1,0 +1,8 @@
+data Tuple a b #p #q where
+    Tuple : a -p> b -q> Tuple a b #p #q;
+
+f a b x : @a #b a -b> (Tuple @a @a #b #b) = Tuple @a @a #b #b x x;
+
+(* const t : Tuple @Int @Int #Unr #Unr -> Int = 0; *)
+
+main : Tuple @Int @Int #Unr #Unr = f @Int #Unr 10;

@@ -1,0 +1,6 @@
+f a b x : @a #b a -b> a = x;
+
+const a b : @a @b (a -> b -> Int) = 0;
+
+(* Must specify const polymorphic types *)
+main : Int = (const (f @Int #One 10) (f @Bool #One true));

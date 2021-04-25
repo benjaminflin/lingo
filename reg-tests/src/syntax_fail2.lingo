@@ -1,0 +1,2 @@
+(* Syntax Error No Equals *)
+main : Int 1;

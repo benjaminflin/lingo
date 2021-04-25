@@ -1,0 +1,4 @@
+f x y z : Int -> Int -> Int = x;
+
+(* Abs Expected *)
+main : Int = (f 1 2 3);

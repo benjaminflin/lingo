@@ -1,0 +1,2 @@
+(* Syntax Error No Colon *)
+main Int = 1;

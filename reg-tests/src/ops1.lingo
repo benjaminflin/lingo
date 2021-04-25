@@ -1,0 +1,29 @@
+print_int : Int -> Int;
+print_bool : Bool -> Bool;
+
+main : Int = 
+    let x : Int = print_int (1 + 2) in 
+    let x : Int = print_int (1 - 2) in 
+    let x : Int = print_int (1 * 2) in 
+    let x : Int = print_int (100 / 2) in 
+    let x : Int = print_int (99) in 
+    let x : Bool = print_bool (1 == 2) in 
+    let x : Bool = print_bool (1 == 1) in 
+    let x : Int = print_int (99) in 
+    let x : Bool = print_bool (1 != 2) in 
+    let x : Bool = print_bool (1 != 1) in 
+    let x : Int = print_int (99) in 
+    let x : Bool = print_bool (1 < 2) in 
+    let x : Bool = print_bool (2 < 1) in 
+    let x : Int = print_int (99) in 
+    let x : Bool = print_bool (1 <= 2) in 
+    let x : Bool = print_bool (1 <= 1) in 
+    let x : Bool = print_bool (2 <= 1) in 
+    let x : Int = print_int (99) in 
+    let x : Bool = print_bool (1 > 2) in 
+    let x : Bool = print_bool (2 > 1) in 
+    let x : Bool = print_bool (1 >= 2) in 
+    let x : Bool = print_bool (1 >= 1) in 
+    let x : Bool = print_bool (1 >= 1) in 
+    let x : Bool = print_bool (2 <= 1) in 
+    0;

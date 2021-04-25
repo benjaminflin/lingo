@@ -1,0 +1,5 @@
+print_int : Int -> Int;
+succ x : Int -> Int = x + 1;
+
+compose p q x y z stephen a edwards : #p #q @x @y @z (y -p> z) -> (x -q> y) -> x -p*q> z = stephen (a edwards);
+main : Int = (compose #Unr #Unr @Int @Int @Int print_int succ) 41;

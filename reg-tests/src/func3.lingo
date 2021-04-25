@@ -1,0 +1,7 @@
+print_int : Int -> Int;
+
+succ x : Int -> Int = x + 10;
+
+succ_succ y : Int -> Int = succ (succ y);
+
+main : Int = print_int (succ_succ 10);

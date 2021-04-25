@@ -172,6 +172,8 @@ else:
     else:
         for in_src_file in listdir(src_dir):
             in_src_f, *rest = in_src_file.split('.lingo')
+            if (f'{".ignore"}') in rest:
+                continue
             run_test(in_src_f)
 
     run(["dune", "clean"])

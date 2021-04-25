@@ -13,7 +13,7 @@ typedef struct box
     char *b;
 } Box;
 
-typedef struct tuple 
+typedef struct tuple
 {
     Box a;
     Box b;
@@ -24,6 +24,26 @@ long long print_int(long long t)
     printf("%lld\n", t);
     return 0;
 }
+
+char print_char(char c)
+{
+    printf("%c\n", c);
+    return c;
+}
+
+int print_bool(int b)
+{
+    if (b == 0)
+    {
+        printf("false\n");
+    }
+    else if (b == 1)
+    {
+        printf("true\n");
+    }
+    return b;
+}
+
 ADT print_string(ADT adt)
 {
     printf("%s\n", adt.data);
@@ -48,14 +68,14 @@ char *believe_me(char *x)
 {
     return x;
 }
-ADT open_file(ADT filename, ADT filemode) 
+ADT open_file(ADT filename, ADT filemode)
 {
     FILE *fp = fopen(filename.data, filemode.data);
-    char *data = (char*) fp;
-    return (ADT) {.tag = 0, .data = data};
+    char *data = (char *)fp;
+    return (ADT){.tag = 0, .data = data};
 }
 
-ADT read_file(ADT file) 
+ADT read_file(ADT file)
 {
     FILE *fp = (FILE *)file.data;
     fseek(fp, 0L, SEEK_END);
@@ -65,19 +85,19 @@ ADT read_file(ADT file)
     fread(data, 1, size, fp);
     Tuple *tup = malloc(sizeof(Tuple));
     ADT mem;
-    mem.tag = 0; 
-    mem.data = data; 
+    mem.tag = 0;
+    mem.data = data;
     ADT file2;
     file2.tag = 0;
     file2.data = (char *)fp;
     tup->a = *((Box *)&mem);
     tup->b = *((Box *)&file2);
-    return (ADT) {.tag = 0, .data = (char *)tup};
+    return (ADT){.tag = 0, .data = (char *)tup};
 }
 
 ADT close_file(ADT file)
 {
-    FILE* fp = (FILE*)file.data;
+    FILE *fp = (FILE *)file.data;
     fclose(fp);
     return unit;
 }

@@ -1,0 +1,6 @@
+print_char : Char -> Char;
+
+return_a x : Int -> Char = 'a';
+const y : Char -> Int = 0;
+
+main : Int = const (print_char (return_a 10));

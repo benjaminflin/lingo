@@ -1,0 +1,7 @@
+print_bool : Bool -> Bool;
+
+bool_int_bool_int_bool b1 i1 b2 i2 : Bool -> Int -> Bool -> Int -> Bool = true;
+
+const x : Bool -> Int = 0;
+
+main : Int = const (print_bool (bool_int_bool_int_bool true 10 false 10));

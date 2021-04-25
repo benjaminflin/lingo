@@ -1,0 +1,2 @@
+Multiplicity Mismatch: Unr > One
+Fatal error: exception Core.Typecheck.MultMismatch(1, 0)

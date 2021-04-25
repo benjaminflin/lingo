@@ -1,0 +1,5 @@
+f a b x : @a #b a -b> a = x;
+
+const a b x y : @a @b (a -> b -> Int) = 0;
+
+main : Int = (const @Int @Bool (f @Int #One 10) (f @Bool #One true));

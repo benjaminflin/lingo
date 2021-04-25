@@ -493,7 +493,7 @@ let check_constraint actual_mult expected_mult =
   | (_, Unr) -> true 
   | (Unr, _) -> false
   | (One, One) -> true 
-  | (One, _) -> false
+  | (One, _) -> true
   | (_, One) -> false
   and assoc_leq a b c a' b' c' = 
     (leq a a' && leq b b' && leq c c') ||

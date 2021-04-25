@@ -1,0 +1,2 @@
+Type Mismatch: (#1 -Unr> (#0 -Unr> Int)) /= Int
+Fatal error: exception Core.Typecheck.TypeMismatch(_, _)
