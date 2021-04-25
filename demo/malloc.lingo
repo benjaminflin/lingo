@@ -1,0 +1,43 @@
+data Mem where
+
+data Unit where
+    Unit : Unit; 
+
+prim_alloc : Int -* Mem;
+prim_drop : Mem -* ();
+print_string : Mem -* Mem;
+print_int : Int -> Int;
+set_bit : Mem -* Int -> Char -> Mem;
+
+data String where
+    E : String;
+    C : Char -> String -> String;
+
+len : String -> Int
+    = \s. case s of
+        C c s -> 1 + len s;
+        _ -> 0;
+    ;
+
+alloc : Int -> (Mem -* ()) -> ()
+      = \m. \f. f (prim_alloc m);
+
+drop : Mem -* ()
+     = prim_drop; 
+
+stringToMem' : String -> Mem -* Int -> Mem
+             = \s. \m. \i. case s of
+                    C c s -> stringToMem' s (set_bit m i c) (i + 1);
+                    _ -> set_bit m i '\000';
+            ;
+
+stringToMem : String -> (Mem -* ()) -> ()
+            = \s. \f. alloc (1 + len s) (\m. f (stringToMem' s m 0));
+
+printAndDrop : Mem -* ()
+             = \m. drop (print_string m);
+
+const : @a @b a -> b -> a
+      = \a. \b. \x. \y. x;
+
+main : Int = const @Int @Unit 0 (stringToMem "hi" printAndDrop);  

@@ -1,0 +1,60 @@
+data File where
+data Mem where
+
+data Unit where
+  Unit : Unit;
+data Tuple a b #p #q where
+    Tuple : a -p> b -q> Tuple a b;
+
+print_int : Int -* Int; 
+print_string : Mem -* Mem;
+prim_alloc : Int -* Mem;
+prim_drop : Mem -* ();
+set_bit : Mem -* Int -> Char -> Mem;
+open_file : Mem -> Mem -> File;
+read_file : File -* Tuple Mem File #Unr #One;
+close_file : File -* ();
+
+data String where
+    E : String;
+    C : Char -> String -> String;
+
+len : String -> Int
+    = \s. case s of
+        C c s -> 1 + len s;
+        _ -> 0;
+    ;
+printString : Mem -* Mem = print_string;
+
+string_to_mem : String -> Mem 
+            = \s. 
+            let m : Mem = prim_alloc (1 + len s) in
+            let string_to_mem' : String -> Mem -* Int -> Mem
+               = \s. \m. \i. case s of
+                    C c s -> string_to_mem' s (set_bit m i c) (i + 1);
+                    _ -> set_bit m i '\000'; 
+            in
+            string_to_mem' s m 0;
+
+openFile : String -> String -> (File -* ()) -> ()
+         = \filename. \mode. \k. k (open_file (string_to_mem filename) (string_to_mem mode));
+
+readFile : File -* Tuple Mem File #Unr #One = read_file;
+
+closeFile : File -* () = close_file;
+
+const : @a @b a -> b -> a
+      = \a. \b. \x. \y. x;
+
+printFile : String -> String -> ()
+          =
+          \filename. \mode. 
+            let f : File -* () = \file. 
+              case (readFile file) of 
+                Tuple str file -> 
+                  let x : Mem = printString str in   
+                  closeFile file;
+            in
+            openFile filename mode f;
+            
+main : Int = const @Int @() 0 (printFile "./reg-tests/file.txt" "r");
