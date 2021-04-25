@@ -1,0 +1,18 @@
+print_int : Int -> Int;
+print_bool : Bool -> Bool;
+
+main : Int = 
+    let x : Bool = print_bool (true) in 
+    let x : Bool = print_bool (false) in 
+    let x : Bool = print_bool (true && true) in 
+    let x : Bool = print_bool (false && true) in 
+    let x : Bool = print_bool (true && false) in 
+    let x : Bool = print_bool (false && false) in 
+    let x : Bool = print_bool (true || true) in 
+    let x : Bool = print_bool (true || false) in 
+    let x : Bool = print_bool (false || true) in 
+    let x : Bool = print_bool (false || false) in 
+    let x : Bool = print_bool (!false) in 
+    let x : Bool = print_bool (!true) in 
+    let x : Int = print_int (-10) in 
+    0;

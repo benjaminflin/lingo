@@ -1,0 +1,5 @@
+id x : Int -* Int = x;
+
+use a f y : @a (a -> a) -> a -> a = f y;
+
+main : Int = use @Int id 10;

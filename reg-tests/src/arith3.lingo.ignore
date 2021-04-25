@@ -1,0 +1,5 @@
+print_int : Int -> Int;
+main : Int = 
+    let a : Int = 42 in
+    let a : Int = a + 5 in
+    print_int a;

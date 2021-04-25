@@ -1,0 +1,3 @@
+foo x : Int -> Int = x;
+
+main : Int = foo;

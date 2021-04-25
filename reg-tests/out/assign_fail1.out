@@ -1,0 +1,2 @@
+Type Mismatch: Bool /= Int
+Fatal error: exception Core.Typecheck.TypeMismatch(_, _)

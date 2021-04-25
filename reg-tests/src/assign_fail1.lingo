@@ -1,0 +1,4 @@
+main : Bool = 
+    let a : Int = 10 in
+    let b : Bool = 10 in
+    b;

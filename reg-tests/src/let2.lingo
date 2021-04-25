@@ -1,0 +1,7 @@
+print_int : Int -> Int;
+
+main : Int = 
+    let x : Int = 10 in
+    let y : Int = 20 in
+    let z : Int = 12 in
+    print_int (x + y + z);

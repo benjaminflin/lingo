@@ -1,0 +1,5 @@
+id x : Int -* Int = x;
+
+use a f y : #a (Int -a> Int) -> Int -> Int = f y;
+
+main : Int = use #Unr id 10;
