@@ -1,0 +1,2 @@
+foo a x y : @a (a -> a) -> a -> a = x y;
+bar b z : @b b -> b = z;

@@ -1,0 +1,10 @@
+print_char : Char -> Char;
+print_bool : Bool -> Bool;
+print_int : Int -> Int;
+
+main : Int =
+    let x : Char = print_char 'a' in
+    let x : Char = print_char '0' in
+    let x : Bool = print_bool true in
+    let x : Bool = print_bool false in
+    print_int 42;
