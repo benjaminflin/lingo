@@ -1,0 +1,7 @@
+print_int : Int -> Int;
+
+main : Int = 
+    let f g h x : (Int -> Int) -> (Int -> Int) -> Int -> Int = g (h x) in
+    let succ x : Int -> Int = x + 1 in
+    let dec x : Int -> Int = x - 1 in
+    print_int (f succ dec 10);

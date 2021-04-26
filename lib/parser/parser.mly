@@ -88,8 +88,15 @@ infer_expr:
 | app_term BACKTICK LID BACKTICK app_term           { App(App(Var($3), Infer($1)), Infer($5)) }
 
 let_expr:
-| LET mult LID COLON ty ASSIGN check_expr IN infer_expr                { Let($3, $2, $5, $7, $9) }
-| LET LID COLON ty ASSIGN check_expr IN infer_expr                     { Let($2, Unr, $4, $6, $8) }
+| LET FORALLM mult LID COLON ty ASSIGN check_expr IN infer_expr                     { Let($4, $3, [], $6, $8, $10) }
+| LET LID COLON ty ASSIGN check_expr IN infer_expr                                  { Let($2, Unr, [], $4, $6, $8) }
+| LET FORALLM mult LID name_list COLON ty ASSIGN check_expr IN infer_expr           { Let($4, $3, $5, $7, $9, $11) }
+| LET LID name_list COLON ty ASSIGN check_expr IN infer_expr                        { Let($2, Unr, $3, $5, $7, $9) }
+
+// let (f : Unr) x y z =  
+// let x f = 10;
+// let f x = 10;
+// let 
 
 app_term:
 | atomic_term                                       { $1 }

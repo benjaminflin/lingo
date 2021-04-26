@@ -77,6 +77,7 @@ let convert_unop = function
 | Ast.Not -> Tc.Not
 | Ast.Neg -> Tc.Neg
 
+
 let rec convert_check_expr dbmap = function
 | Ast.Lam (name, cexpr) -> Tc.Lam (convert_check_expr (name::dbmap) cexpr)  
 | Ast.Case (iexpr, ca_list) -> 
@@ -97,18 +98,18 @@ and convert_infer_expr dbmap = function
 | Ast.Unop unop -> 
   Tc.Unop (convert_unop unop)
 
-| Ast.Let (name, mult, ty, cexpr, iexpr) -> 
+| Ast.Let (name, mult, name_list, ty, cexpr, iexpr) -> 
   (match ty with
   | Ast.Arr (_, _, _) -> 
     Tc.Let ( convert_mult [] mult, 
             convert_ty [] ty, 
-            convert_check_expr (name::dbmap) cexpr, 
+            (name_list_to_lam (name::dbmap) cexpr name_list), 
             convert_infer_expr (name::dbmap) iexpr
           )
   | _ -> 
     Tc.Let ( convert_mult [] mult, 
             convert_ty [] ty, 
-            convert_check_expr dbmap cexpr, 
+            name_list_to_lam dbmap cexpr name_list, 
             convert_infer_expr (name::dbmap) iexpr
           )
   ) 
@@ -154,10 +155,10 @@ and convert_case_alt dbmap = function
 
 | Ast.Wildcard (iexpr) -> 
   Tc.Wildcard (convert_infer_expr dbmap iexpr) 
-
-let rec name_list_to_lam dbmap cexpr = function
+and name_list_to_lam dbmap cexpr = function
 | [] -> convert_check_expr dbmap cexpr 
 | x::xs -> Tc.Lam (name_list_to_lam (x::dbmap) cexpr xs)
+
 
 let convert_data_param = function
 | Ast.MultParam _ -> Tc.MultParam

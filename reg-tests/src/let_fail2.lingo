@@ -1,0 +1,7 @@
+print_int : Int -> Int;
+
+main : Int = 
+    let #One id x : Int -> Int = x in
+    let g x y : Int -> Int -> Int = y in
+    print_int (g (id 10) (id 10));
+

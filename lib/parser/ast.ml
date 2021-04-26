@@ -28,7 +28,7 @@ and infer_expr
   = Var of name
   | Binop of binop
   | Unop of unop
-  | Let of name * mult * ty * check_expr * infer_expr
+  | Let of name * mult * name list * ty * check_expr * infer_expr
   | Type of ty
   | Mult of mult
   | App of infer_expr * check_expr

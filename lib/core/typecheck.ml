@@ -643,6 +643,8 @@ and infer env = function
     let ty', uenv2, sexpr2
       = infer (extend_env ty env) iexpr
     in
+    let actual_mult = lookup_uenv 0 uenv2 in
+    check_constraint actual_mult mult;
     ty', add_usage (dec_uenv uenv2) (scale_usage mult (dec_uenv uenv1)), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
   | _ -> 
     let uenv1, sexpr1
@@ -651,6 +653,8 @@ and infer env = function
     let ty', uenv2, sexpr2
       = infer (extend_env ty env) iexpr
     in
+    let actual_mult = lookup_uenv 0 uenv2 in
+    check_constraint actual_mult mult;
     ty', add_usage (dec_uenv uenv2) (scale_usage mult uenv1), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
   )
 

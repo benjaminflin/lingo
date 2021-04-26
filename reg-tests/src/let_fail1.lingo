@@ -1,0 +1,4 @@
+print_int : Int -> Int;
+main : Int = 
+    let #One x : Int = 10 in
+    print_int (x + x);
