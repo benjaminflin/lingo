@@ -1,0 +1,2 @@
+print_int : Int -> Int;
+main : Int = (\x. print_int x : Int -> Int) 0;

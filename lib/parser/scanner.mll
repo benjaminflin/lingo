@@ -1,4 +1,6 @@
-(* Ocamllex Scannner *)
+(* 
+Authors: Ben, Sophia, Jay
+Ocamllex Scanner *)
 
 { open Parser }
 let digit = ['0'-'9']

@@ -1,4 +1,5 @@
 %{ 
+(* Authors: Sophia, Ben, Jay *)
 open Ast 
 let build_string str =  
     let explode s = List.init (String.length s) (String.get s) in
@@ -78,14 +79,12 @@ check_expr:
 
 infer_expr:
 | IF infer_expr THEN infer_expr ELSE infer_expr     { If($2, $4, $6) } 
-| LPAREN check_expr COLON ty RPAREN                 { Ann($2, $4) }
 | NOT infer_expr                                    { App(Unop(Not), Infer($2)) }
 | DASH infer_expr %prec NOT                         { App(Unop(Neg), Infer($2)) }
 | app_term                                          { $1 }
 | let_expr                                          { $1 }
 | bin_operation                                     { $1 } 
 | app_term lambda                                   { App($1, $2) }
-| app_term BACKTICK LID BACKTICK app_term           { App(App(Var($3), Infer($1)), Infer($5)) }
 
 let_expr:
 | LET FORALLM mult LID COLON ty ASSIGN check_expr IN infer_expr                     { Let($4, $3, [], $6, $8, $10) }
@@ -93,17 +92,16 @@ let_expr:
 | LET FORALLM mult LID name_list COLON ty ASSIGN check_expr IN infer_expr           { Let($4, $3, $5, $7, $9, $11) }
 | LET LID name_list COLON ty ASSIGN check_expr IN infer_expr                        { Let($2, Unr, $3, $5, $7, $9) }
 
-// let (f : Unr) x y z =  
-// let x f = 10;
-// let f x = 10;
-// let 
 
 app_term:
 | atomic_term                                       { $1 }
 | app_term atomic_term                              { App($1, Infer($2)) }
+| app_term BACKTICK LID BACKTICK atomic_term        { App(App(Var($3), Infer($1)), Infer($5)) }
 
 atomic_term:
 | LPAREN infer_expr RPAREN      { $2 }
+| LPAREN check_expr COLON ty RPAREN
+                                { Ann($2, $4) }
 | UNIT                          { Construction("Unit") } 
 | LID                           { Var($1) }
 | UID                           { Construction($1) }

@@ -1,3 +1,4 @@
+// Authors: Ben, Jay, Sophia
 #include <stdio.h>
 #include <stdlib.h>
 

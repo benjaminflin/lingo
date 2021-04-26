@@ -1,3 +1,4 @@
+# Authors: Ben, Jay, Sophia
 from os import listdir, getcwd, mkdir, path, remove
 import argparse
 import subprocess

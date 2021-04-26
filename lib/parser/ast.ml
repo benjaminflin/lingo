@@ -1,3 +1,5 @@
+(* Authors: Jay, Sophia, Ben *)
+
 type mult 
   = One 
   | Unr 

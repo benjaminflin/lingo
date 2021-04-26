@@ -1,6 +1,6 @@
 #!/bin/bash
+# Authors: Jay
 dune build
-
 # Get Base Name
 FILE="$1"
 FILE_NO_EXT=${FILE%.*}

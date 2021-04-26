@@ -14,4 +14,3 @@ foo' m
 
 print_int : Int -> Int;
 main : Int = print_int (foo' (Just @Int #One 1));
-

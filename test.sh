@@ -1,4 +1,5 @@
 #!/bin/bash
+# Authors: Jay
 ARGS="$@"
 # Run Python Tests
 docker-compose run lingo_testbed bash -c "python3 ./reg-tests/RunTests.py $ARGS"
