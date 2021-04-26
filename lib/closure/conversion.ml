@@ -41,7 +41,13 @@ let beta_reduce mexpr1 mexpr2 =
   | M.Case (mscrut, mty, mcalts, out_mty) -> 
     M.Case (shift cutoff amount mscrut, mty, List.map (shift_case cutoff amount) mcalts, out_mty)
   | M.Let (mexpr1, mty1, mexpr2, mty2) -> 
-    M.Let (shift (cutoff + 1) amount mexpr1, mty1, shift (cutoff + 1) amount mexpr2, mty2) 
+    (match mty1 with 
+    | M.Arr (_, _) -> 
+      M.Let (shift (cutoff + 1) amount mexpr1, mty1, shift (cutoff + 1) amount mexpr2, mty2) 
+    | _ -> 
+      M.Let (shift cutoff amount mexpr1, mty1, shift (cutoff + 1) amount mexpr2, mty2) 
+    )
+
   | M.Box (mexpr, mty) -> 
     M.Box (shift cutoff amount mexpr, mty) 
   | M.Unbox (mexpr, mty) ->  
@@ -65,7 +71,11 @@ let beta_reduce mexpr1 mexpr2 =
   | M.Case (mscrut, mty, mcalts, out_mty) -> 
     M.Case (subst expr idx mscrut, mty, List.map (subst_case expr idx) mcalts, out_mty)
   | M.Let (mexpr1, mty1, mexpr2, mty2) -> 
-    M.Let (subst (shift 0 1 expr) (idx + 1) mexpr1, mty1, subst (shift 0 1 expr) (idx + 1) mexpr2, mty2) 
+    (match mty1 with
+    | M.Arr (_, _) -> 
+      M.Let (subst (shift 0 1 expr) (idx + 1) mexpr1, mty1, subst (shift 0 1 expr) (idx + 1) mexpr2, mty2) 
+    | _ -> 
+      M.Let (subst expr idx mexpr1, mty1, subst (shift 0 1 expr) (idx + 1) mexpr2, mty2))
   | M.Box (mexpr, mty) -> 
     M.Box (subst expr idx mexpr, mty) 
   | M.Unbox (mexpr, mty) ->  
@@ -100,8 +110,10 @@ let free_vars =
       S.union (free_vars mexpr)
         @@ List.fold_left S.union S.empty (List.map free_vars_calt calt_list)
     | M.DbIndex (idx, mty) -> S.singleton (idx, convert_mty mty)
-    | M.Let (mexpr1, _, mexpr2, _) ->
-      S.union (free_vars mexpr1) (dec_by 1 @@ free_vars mexpr2)
+    | M.Let (mexpr1, mty1, mexpr2, _) ->
+      (match mty1 with
+      | M.Arr (_, _) -> S.union (dec_by 1 @@ free_vars mexpr1) (dec_by 1 @@ free_vars mexpr2)
+      | _ -> S.union (free_vars mexpr1) (dec_by 1 @@ free_vars mexpr2))
     | M.App (mexpr1, _, mexpr2, _, _) ->
       S.union (free_vars mexpr1) (free_vars mexpr2)
     | M.Box (mexpr, _) -> free_vars mexpr 
@@ -206,10 +218,10 @@ let convert_mexpr name (prog : M.program) expr =
     let _ = unique_name name in
     let name1 = unique_name name in 
     let name2 = unique_name name in 
-    let mexpr1 = beta_reduce mexpr1 (M.Global (name1, mty1)) in
     let expr2 = convert mexpr2 in
     let expr1 = (match mty1 with
     | M.Arr (_, _) -> 
+      let mexpr1 = beta_reduce mexpr1 (M.Global (name1, mty1)) in
       let fvs = free_vars mexpr1 in
       let expr1 = convert mexpr1 in
       let args = List.map (fun (i,t) -> CArg (i, t)) @@ fvs in

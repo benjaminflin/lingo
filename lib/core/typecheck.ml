@@ -137,12 +137,20 @@ module Sast = struct
   | S.Binop (binop, sty) -> S.Binop (binop, shift_sty cutoff amount sty) 
   | S.Unop (unop, sty) -> S.Unop (unop, shift_sty cutoff amount sty)
   | S.Let (in_ast, in_sty, out_ast, out_sty) -> 
-      S.Let (
-              shift (cutoff + 1) amount in_ast, 
-              shift_sty cutoff amount in_sty, 
-              shift (cutoff + 1) amount out_ast,
-              shift_sty (cutoff + 1) amount out_sty
-            )
+      (match in_sty with
+      | S.Arr (_, _) -> 
+        S.Let (
+                shift (cutoff + 1) amount in_ast, 
+                shift_sty cutoff amount in_sty, 
+                shift (cutoff + 1) amount out_ast,
+                shift_sty (cutoff + 1) amount out_sty
+              )
+      | _ -> S.Let (
+                shift (cutoff + 1) amount in_ast, 
+                shift_sty cutoff amount in_sty, 
+                shift (cutoff) amount out_ast,
+                shift_sty (cutoff + 1) amount out_sty
+      )) 
   | S.TApp (ast, app_sty, out_sty) -> S.TApp(shift cutoff amount ast, shift_sty cutoff amount app_sty, shift_sty cutoff amount out_sty)
   | S.Construction (name, sty) -> S.Construction (name, shift_sty cutoff amount sty)
   | S.If(ast1, ast2, ast3, sty) -> S.If(shift cutoff amount ast1, shift cutoff amount ast2, shift cutoff amount ast3, shift_sty cutoff amount sty)
@@ -627,13 +635,24 @@ and infer env = function
     ty , [], S.Unop (unop, S.ty_to_sty ty))
 
 | Let (mult, ty, cexpr, iexpr) ->
-  let uenv1, sexpr1
-    = check (extend_env ty env) ty cexpr
-  in
-  let ty', uenv2, sexpr2
-    = infer (extend_env ty env) iexpr
-  in
-  ty', add_usage (dec_uenv uenv2) (scale_usage mult (dec_uenv uenv1)), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
+  (match ty with
+  | Arr (_, _, _) ->
+    let uenv1, sexpr1
+      = check (extend_env ty env) ty cexpr
+    in
+    let ty', uenv2, sexpr2
+      = infer (extend_env ty env) iexpr
+    in
+    ty', add_usage (dec_uenv uenv2) (scale_usage mult (dec_uenv uenv1)), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
+  | _ -> 
+    let uenv1, sexpr1
+      = check env ty cexpr
+    in
+    let ty', uenv2, sexpr2
+      = infer (extend_env ty env) iexpr
+    in
+    ty', add_usage (dec_uenv uenv2) (scale_usage mult uenv1), S.Let (sexpr1, S.ty_to_sty ty, sexpr2, S.ty_to_sty ty')
+  )
 
 | App (iexpr, cexpr) ->
   let ty, uenv1, sexpr1 = infer env iexpr in 

@@ -5,9 +5,9 @@ data Maybe a #p where
   Nothing : Maybe a #p;
 
 main : Int =
-    let j : Maybe @Int #Unr = Just 10 #Unr in
-    let cs x : Maybe Int #Unr -> Int
-        = case x of
+    let j : Maybe @Int #Unr = Just @Int #Unr 10 in
+    let cs : Maybe Int #Unr -> Int
+        = \x. case x of
             Just i -> print_int i;
             _ -> 0;
     in

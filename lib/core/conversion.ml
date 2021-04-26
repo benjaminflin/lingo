@@ -98,11 +98,20 @@ and convert_infer_expr dbmap = function
   Tc.Unop (convert_unop unop)
 
 | Ast.Let (name, mult, ty, cexpr, iexpr) -> 
-  Tc.Let ( convert_mult [] mult, 
-           convert_ty [] ty, 
-           convert_check_expr (name::dbmap) cexpr, 
-           convert_infer_expr (name::dbmap) iexpr
-         )
+  (match ty with
+  | Ast.Arr (_, _, _) -> 
+    Tc.Let ( convert_mult [] mult, 
+            convert_ty [] ty, 
+            convert_check_expr (name::dbmap) cexpr, 
+            convert_infer_expr (name::dbmap) iexpr
+          )
+  | _ -> 
+    Tc.Let ( convert_mult [] mult, 
+            convert_ty [] ty, 
+            convert_check_expr dbmap cexpr, 
+            convert_infer_expr (name::dbmap) iexpr
+          )
+  ) 
 
 | Ast.App (iexpr, Ast.Infer (Ast.Type ty)) ->
   Tc.TApp (convert_infer_expr dbmap iexpr, convert_ty dbmap ty)
